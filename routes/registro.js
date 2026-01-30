@@ -1,8 +1,11 @@
 import express from 'express';
 const route = express.Router();
-import controladorRegistro from '../controller/'
+import registroController from '../controller/registro.js'
 
-route.post('/:id');
-route.get('/:id');
-route.put('/:id');
-route.delete('/:id');
+route.post('/', registroController.create);
+route.get('/', registroController.getAll);
+route.get('/:id', registroController.getOne);
+route.put('/:id', registroController.update);
+route.delete('/:id', registroController.delete);
+
+export default route;
