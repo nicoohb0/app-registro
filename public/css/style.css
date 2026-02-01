@@ -1,38 +1,439 @@
+/* ========== ESTILOS GENERALES ========== */
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background-color: #f8f9fa;
+    margin: 0;
+    padding: 0;
+    color: #333;
 }
 
-.bienvenida-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 3rem;
-    border-radius: 15px;
-    margin-top: 2rem;
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 15px;
 }
 
-.user-avatar {
-    width: 100px;
-    height: 100px;
-    background-color: rgba(255, 255, 255, 0.2);
+/* ========== NAVBAR ========== */
+.navbar-dark.bg-dark {
+    background-color: #1a1a1a !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    padding: 10px 0;
+}
+
+.navbar-brand {
+    font-weight: 600;
+    font-size: 1.5rem;
+}
+
+.navbar-brand i {
+    color: #667eea;
+}
+
+.nav-link {
+    font-weight: 500;
+    padding: 8px 15px !important;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+}
+
+.nav-link.active {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    transform: translateY(-1px);
+}
+
+/* ========== DROPDOWN DE USUARIO ========== */
+.dropdown-usuario .dropdown-toggle {
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    padding: 8px 15px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.dropdown-usuario .dropdown-toggle:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.avatar-circle-sm {
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
+    background: linear-gradient(135deg, #000000 0%, #d3d3d3 100%);
+    color: white;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 3rem;
-    margin: 0 auto;
+    font-weight: bold;
+    font-size: 14px;
+    flex-shrink: 0;
 }
 
-.modal-content {
-    border-radius: 10px;
+.dropdown-menu {
+    border-radius: 12px;
     border: none;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    padding: 10px;
+    margin-top: 10px;
+    min-width: 220px;
+}
+
+.dropdown-item {
+    padding: 10px 15px;
+    border-radius: 8px;
+    margin: 3px 0;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.dropdown-item:hover {
+    background-color: #f8f9fa;
+    transform: translateX(5px);
+}
+
+.dropdown-item.text-danger:hover {
+    background-color: rgba(220, 53, 69, 0.1);
+}
+
+.dropdown-divider {
+    margin: 10px 0;
+}
+
+.dropdown-header {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #6c757d;
+    font-weight: 600;
+    padding: 8px 15px;
+}
+
+/* ========== SECCIÓN DE BIENVENIDA ========== */
+#sectionBienvenida {
+    animation: fadeIn 0.8s ease-out;
+    margin-bottom: 30px;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.bienvenida-header {
+    background: linear-gradient(135deg, var(--color-usuario, #667eea) 0%, #764ba2 100%);
+    color: white;
+    padding: 2.5rem;
+    border-radius: 20px;
+    margin-top: 1.5rem;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.2);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.4s ease;
+}
+
+.bienvenida-header:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 35px rgba(102, 126, 234, 0.3);
+}
+
+.bienvenida-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%);
+    animation: shine 3s infinite linear;
+}
+
+@keyframes shine {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+#userAvatar {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    font-weight: bold;
+    margin: 0 auto 25px auto;
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    position: relative;
+    z-index: 1;
+}
+
+#userAvatar::after {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: -10px;
+    right: -10px;
+    bottom: -10px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    z-index: -1;
+}
+
+#saludoUsuario {
+    font-size: 2.2rem;
+    font-weight: 700;
+    margin-bottom: 10px;
+    position: relative;
+    z-index: 1;
+}
+
+#nombreUsuario {
+    color: #ffd700;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+#mensajeBienvenida {
+    font-size: 1.1rem;
+    opacity: 0.9;
+    margin-bottom: 25px;
+    position: relative;
+    z-index: 1;
+}
+
+.bienvenida-header .btn {
+    padding: 10px 25px;
+    border-radius: 50px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    position: relative;
+    z-index: 1;
+    margin: 0 5px;
+}
+
+.bienvenida-header .btn-light {
+    background-color: rgba(255, 255, 255, 0.9);
+    border: none;
+}
+
+.bienvenida-header .btn-light:hover {
+    background-color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.bienvenida-header .btn-outline-light {
+    border-width: 2px;
+}
+
+.bienvenida-header .btn-outline-light:hover {
+    background-color: white;
+    color: #667eea;
+    transform: translateY(-2px);
+}
+
+#fechaUltimoAcceso {
+    opacity: 0.8;
+    display: block;
+    margin-top: 20px;
+    position: relative;
+    z-index: 1;
+}
+
+#ultimaFecha {
+    font-weight: 600;
+    color: #ffd700;
+}
+
+/* ========== MODALES ========== */
+.modal-content {
+    border-radius: 15px;
+    border: none;
+    overflow: hidden;
+}
+
+.modal-header {
+    background: linear-gradient(135deg, #000000 0%, #d3d3d3 100%);
+    color: white;
+    border-bottom: none;
+    padding: 20px 30px;
+}
+
+.modal-title {
+    font-weight: 600;
+}
+
+.btn-close {
+    filter: invert(1);
+    opacity: 0.8;
+}
+
+.btn-close:hover {
+    opacity: 1;
+}
+
+.modal-body {
+    padding: 30px;
+}
+
+.form-control {
+    border-radius: 8px;
+    border: 2px solid #e9ecef;
+    padding: 12px 15px;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.25rem rgba(102, 126, 234, 0.25);
+}
+
+.form-check-input:checked {
+    background-color: #667eea;
+    border-color: #667eea;
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #000000 0%, #d3d3d3 100%);
     border: none;
+    padding: 12px 20px;
+    font-weight: 600;
+    border-radius: 8px;
+    transition: all 0.3s ease;
 }
 
 .btn-primary:hover {
-    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+    background: linear-gradient(135deg, #333333 0%, #e0e0e0 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+.btn-outline-light {
+    border-width: 2px;
+}
+
+/* ========== BOTONES GENERALES ========== */
+.btn {
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+}
+
+/* ========== RESPONSIVE ========== */
+@media (max-width: 768px) {
+    .navbar-nav {
+        margin-top: 10px;
+    }
+    
+    #saludoUsuario {
+        font-size: 1.8rem;
+    }
+    
+    .bienvenida-header {
+        padding: 1.5rem;
+    }
+    
+    .bienvenida-header .btn {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    
+    .dropdown-usuario .dropdown-toggle span {
+        display: none;
+    }
+}
+
+@media (max-width: 576px) {
+    .modal-dialog {
+        margin: 10px;
+    }
+    
+    .modal-body {
+        padding: 20px;
+    }
+    
+    #userAvatar {
+        width: 80px;
+        height: 80px;
+        font-size: 24px;
+    }
+}
+
+/* ========== ANIMACIONES ========== */
+.fade-in {
+    animation: fadeIn 0.5s ease-out;
+}
+
+.slide-down {
+    animation: slideDown 0.4s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ========== UTILIDADES ========== */
+.text-gradient {
+    background: linear-gradient(135deg, #000000 0%, #d3d3d3 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.shadow-soft {
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+}
+
+.rounded-lg {
+    border-radius: 15px;
+}
+
+/* ========== SCROLLBAR PERSONALIZADA ========== */
+::-webkit-scrollbar {
+    width: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #000000 0%, #d3d3d3 100%);
+    /* background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); */
+    border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #333333 0%, #e0e0e0 100%);
 }
