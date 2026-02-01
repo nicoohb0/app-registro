@@ -8,6 +8,11 @@ npm i dotenv
 
 npm i mongodb
 
+npm i --save-dev nodemon
+
+npm i bootstrap
+
+
 
 extensión visualCode
 
