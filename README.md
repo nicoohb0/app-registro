@@ -12,6 +12,8 @@ npm i --save-dev nodemon
 
 npm i bootstrap
 
+npm i bcrypt
+
 
 
 extensión visualCode
