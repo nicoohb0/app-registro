@@ -40,24 +40,6 @@ app.get('/registro-form', (req, res) => {
 // API
 app.use('/api/registro', routeRegistro);
 
-// Test endpoint
-app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
-// 404 para API (forma correcta)
-app.use('/api', (req, res) => {
-    res.status(404).json({ 
-        error: 'Ruta API no encontrada',
-        path: req.path 
-    });
-});
-
-// 404 para páginas
-app.use((req, res) => {
-    res.status(404).render('404', { title: 'Página no encontrada' });
-});
-
 // Error handler
 app.use((err, req, res, next) => {
     console.error(err.stack);
@@ -68,6 +50,5 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5566;
 app.listen(PORT, () => {
     console.log(`🚀 Servidor en http://localhost:${PORT}`);
-    console.log(`🔍 Health check: http://localhost:${PORT}/api/health`);
-    console.log(`📝 API Registro: http://localhost:${PORT}/api/registro`);
+    // console.log(`📝 API Registro: http://localhost:${PORT}/api/registro`);
 });

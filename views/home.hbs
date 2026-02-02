@@ -98,12 +98,25 @@
                 <form id="formRegistro">
                     <div class="row mb-3">
                         <div class="col">
-                            <label for="nombre" class="form-label">Nombre</label>
-                            <input type="text" class="form-control" id="nombre" required>
+                            <label for="nombre" class="form-label">Nombre *</label>
+                            <input type="text" class="form-control" id="nombre" pattern="^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]{1,15}$"
+                                title="Solo letras (máximo 15 caracteres, sin números ni caracteres especiales)"
+                                maxlength="15" required>
+                            <div class="invalid-feedback" id="nombreError">
+                                Solo letras, máximo 15 caracteres
+                            </div>
+                            <div class="form-text">Solo letras, máximo 15 caracteres</div>
                         </div>
                         <div class="col">
-                            <label for="apellido" class="form-label">Apellido</label>
-                            <input type="text" class="form-control" id="apellido" required>
+                            <label for="apellido" class="form-label">Apellido *</label>
+                            <input type="text" class="form-control" id="apellido"
+                                pattern="^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]{1,15}$"
+                                title="Solo letras (máximo 15 caracteres, sin números ni caracteres especiales)"
+                                maxlength="15" required>
+                            <div class="invalid-feedback" id="apellidoError">
+                                Solo letras, máximo 15 caracteres
+                            </div>
+                            <div class="form-text">Solo letras, máximo 15 caracteres</div>
                         </div>
                     </div>
                     <div class="mb-3">

@@ -4,7 +4,7 @@ import bcrypt from 'bcrypt';
 
 class registroModelo {
     static SALT_ROUNDS = 12;
-    
+
     static PASSWORD_POLICY = {
         minLength: 12,
         maxLength: 128,
@@ -106,14 +106,24 @@ class registroModelo {
         }
 
         password = password.sort(() => Math.random() - 0.5).join('');
-        
+
         return password;
     }
 
     async create(registroData) {
         try {
             const colRegistro = dbcliente.db.collection('registro');
-            
+            const nombreValidation = this.validarNombreApellidoTexto(registroData.nombre);
+            const apellidoValidation = this.validarNombreApellidoTexto(registroData.apellido);
+
+            if (!nombreValidation.isValid) {
+                throw new Error(`Nombre inválido: ${nombreValidation.error}`);
+            }
+
+            if (!apellidoValidation.isValid) {
+                throw new Error(`Apellido inválido: ${apellidoValidation.error}`);
+            }
+
             // Validar contraseña
             const passwordValidation = registroModelo.validatePasswordStrength(registroData.clave);
             if (!passwordValidation.isValid) {
@@ -128,7 +138,7 @@ class registroModelo {
 
             // Hashear la contraseña
             const hashedPassword = await registroModelo.hashPassword(registroData.clave);
-            
+
             // Crear documento
             const registro = {
                 nombre: registroData.nombre,
@@ -148,15 +158,35 @@ class registroModelo {
 
             return await colRegistro.insertOne(registro);
         } catch (error) {
-            console.error('Error en modelo create:', error);
-            throw error;
+            throw new Error('Error al crear el usuario');
         }
+    }
+
+    validarNombreApellidoTexto(texto) {
+        const regex = /^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]{1,15}$/;
+
+        if (!texto || texto.trim() === '') {
+            return { isValid: false, error: 'Campo requerido' };
+        }
+
+        if (texto.length > 15) {
+            return { isValid: false, error: 'Máximo 15 caracteres' };
+        }
+
+        if (!regex.test(texto)) {
+            return {
+                isValid: false,
+                error: 'Solo se permiten letras (con o sin acentos) y espacios'
+            };
+        }
+
+        return { isValid: true };
     }
 
     async update(id, registroData) {
         try {
             const colRegistro = dbcliente.db.collection('registro');
-            
+
             if (registroData.clave) {
                 const passwordValidation = registroModelo.validatePasswordStrength(registroData.clave);
                 if (!passwordValidation.isValid) {
@@ -165,7 +195,7 @@ class registroModelo {
 
                 const hashedPassword = await registroModelo.hashPassword(registroData.clave);
                 const usuarioActual = await colRegistro.findOne({ _id: new ObjectId(id) });
-                
+
                 // Verificar si la nueva contraseña ya fue usada
                 for (const oldHash of usuarioActual.historicoClaves || []) {
                     if (await registroModelo.verifyPassword(registroData.clave, oldHash)) {
@@ -178,17 +208,17 @@ class registroModelo {
                     ...usuarioActual.datosSeguridad,
                     ultimaActualizacionClave: new Date().toISOString()
                 };
-                
+
                 registroData.historicoClaves = [
                     hashedPassword,
                     ...(usuarioActual.historicoClaves || []).slice(0, 4)
                 ];
-                
+
                 delete registroData.clave;
             }
 
             return await colRegistro.updateOne(
-                { _id: new ObjectId(id) }, 
+                { _id: new ObjectId(id) },
                 { $set: registroData }
             );
         } catch (error) {
@@ -201,7 +231,7 @@ class registroModelo {
         try {
             const colRegistro = dbcliente.db.collection('registro');
             const usuario = await colRegistro.findOne({ correo: email });
-            
+
             if (!usuario) {
                 // Timing attack protection
                 await bcrypt.compare(password, '$2b$12$fakehashforsecurity');
@@ -209,28 +239,28 @@ class registroModelo {
             }
 
             if (usuario.bloqueado) {
-                return { 
-                    success: false, 
-                    reason: 'Cuenta bloqueada. Contacta al administrador.' 
+                return {
+                    success: false,
+                    reason: 'Cuenta bloqueada. Contacta al administrador.'
                 };
             }
 
             const passwordMatch = await registroModelo.verifyPassword(password, usuario.claveHash);
-            
+
             if (!passwordMatch) {
                 const intentosActualizados = (usuario.intentosFallidos || 0) + 1;
                 await colRegistro.updateOne(
                     { _id: usuario._id },
-                    { 
-                        $set: { 
+                    {
+                        $set: {
                             intentosFallidos: intentosActualizados,
                             bloqueado: intentosActualizados >= 5
-                        } 
+                        }
                     }
                 );
-                
-                return { 
-                    success: false, 
+
+                return {
+                    success: false,
                     reason: 'Contraseña incorrecta',
                     intentosRestantes: Math.max(0, 5 - intentosActualizados)
                 };
@@ -239,16 +269,16 @@ class registroModelo {
             // Autenticación exitosa
             await colRegistro.updateOne(
                 { _id: usuario._id },
-                { 
-                    $set: { 
+                {
+                    $set: {
                         intentosFallidos: 0,
                         ultimoAcceso: new Date().toISOString()
-                    } 
+                    }
                 }
             );
 
-            return { 
-                success: true, 
+            return {
+                success: true,
                 usuario: {
                     id: usuario._id,
                     nombre: usuario.nombre,
@@ -258,8 +288,7 @@ class registroModelo {
                 }
             };
         } catch (error) {
-            console.error('Error en modelo authenticate:', error);
-            throw error;
+            throw new Error('Error en la autenticación');
         }
     }
 

@@ -35,8 +35,60 @@ document.addEventListener('DOMContentLoaded', function () {
     function configurarValidaciones() {
         const claveRegistro = document.getElementById('claveRegistro');
         const confirmarClave = document.getElementById('confirmarClave');
+        const nombre = document.getElementById('nombre');
+        const apellido = document.getElementById('apellido');
         const indicadorFortaleza = document.createElement('div');
         indicadorFortaleza.className = 'password-strength mt-2';
+
+        if (nombre) {
+            nombre.addEventListener('input', function () {
+                const valor = this.value.trim();
+                const regex = /^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]*$/;
+
+                // Si el usuario intenta escribir números o caracteres especiales, los eliminamos
+                if (!regex.test(valor)) {
+                    this.value = valor.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ\s]/g, '');
+                }
+
+                // Limitar a 15 caracteres
+                if (this.value.length > 15) {
+                    this.value = this.value.substring(0, 15);
+                }
+
+                // Validar y mostrar feedback
+                validarCampoTexto(this, 'nombreError');
+            });
+
+            // Validar al perder el foco
+            nombre.addEventListener('blur', function () {
+                validarCampoTexto(this, 'nombreError');
+            });
+        }
+
+        if (apellido) {
+            apellido.addEventListener('input', function () {
+                const valor = this.value.trim();
+                const regex = /^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]*$/;
+
+                // Si el usuario intenta escribir números o caracteres especiales, los eliminamos
+                if (!regex.test(valor)) {
+                    this.value = valor.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ\s]/g, '');
+                }
+
+                // Limitar a 15 caracteres
+                if (this.value.length > 15) {
+                    this.value = this.value.substring(0, 15);
+                }
+
+                // Validar y mostrar feedback
+                validarCampoTexto(this, 'apellidoError');
+            });
+
+            // Validar al perder el foco
+            apellido.addEventListener('blur', function () {
+                validarCampoTexto(this, 'apellidoError');
+            });
+        }
 
         if (claveRegistro && confirmarClave) {
             claveRegistro.parentNode.appendChild(indicadorFortaleza);
@@ -432,6 +484,11 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function validarFormularioRegistro() {
+        if (!validarNombreApellido()) {
+            alert('Por favor, corrige los campos de nombre y apellido');
+            return false;
+        }
+
         const clave = document.getElementById('claveRegistro').value;
         const confirmarClave = document.getElementById('confirmarClave').value;
 
@@ -459,6 +516,71 @@ document.addEventListener('DOMContentLoaded', function () {
         return true;
     }
 });
+
+function validarNombreApellido() {
+    const nombre = document.getElementById('nombre');
+    const apellido = document.getElementById('apellido');
+    const nombreError = document.getElementById('nombreError');
+    const apellidoError = document.getElementById('apellidoError');
+
+    // Expresión regular que permite letras, acentos, ñ y espacios
+    const regex = /^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]{1,15}$/;
+
+    let esValido = true;
+
+    // Validar nombre
+    if (nombre) {
+        if (!regex.test(nombre.value.trim())) {
+            nombre.classList.add('is-invalid');
+            nombreError.textContent = 'Solo letras (máximo 15 caracteres, sin números o caracteres especiales)';
+            esValido = false;
+        } else {
+            nombre.classList.remove('is-invalid');
+            nombre.classList.add('is-valid');
+        }
+    }
+
+    // Validar apellido
+    if (apellido) {
+        if (!regex.test(apellido.value.trim())) {
+            apellido.classList.add('is-invalid');
+            apellidoError.textContent = 'Solo letras (máximo 15 caracteres, sin números o caracteres especiales)';
+            esValido = false;
+        } else {
+            apellido.classList.remove('is-invalid');
+            apellido.classList.add('is-valid');
+        }
+    }
+
+    return esValido;
+}
+
+function validarCampoTexto(campo, idError) {
+    const errorElement = document.getElementById(idError);
+    const valor = campo.value.trim();
+    const regex = /^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]{1,15}$/;
+
+    if (valor === '') {
+        campo.classList.remove('is-valid');
+        campo.classList.remove('is-invalid');
+        if (errorElement) errorElement.style.display = 'none';
+        return;
+    }
+
+    if (regex.test(valor)) {
+        campo.classList.remove('is-invalid');
+        campo.classList.add('is-valid');
+        if (errorElement) errorElement.style.display = 'none';
+    } else {
+        campo.classList.remove('is-valid');
+        campo.classList.add('is-invalid');
+        if (errorElement) {
+            errorElement.textContent = 'Solo letras (máximo 15 caracteres)';
+            errorElement.style.display = 'block';
+        }
+    }
+}
+
 
 // Funciones para exportar
 window.generarContraseñaSegura = async function () {

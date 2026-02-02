@@ -15,11 +15,7 @@ class dbCliente {
             this.db = this.client.db('datos-registro');
             console.log("✅ Conectado a la base de datos MongoDB");
         } catch (e) {
-            console.error("❌ Error al conectar a MongoDB:", e.message);
-            console.log("💡 Asegúrate de que:");
-            console.log("   1. Las variables de entorno están configuradas correctamente");
-            console.log("   2. Tu IP está en la whitelist de MongoDB Atlas");
-            console.log("   3. El usuario y contraseña son correctos");
+            console.error("❌ Error al conectar a MongoDB:");
         }
     }
 }
