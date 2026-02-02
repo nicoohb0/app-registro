@@ -2,6 +2,8 @@
 
 npm i express
 
+npm i express-handlebars
+
 npm i body-parser
 
 npm i dotenv
