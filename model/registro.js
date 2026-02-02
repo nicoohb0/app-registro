@@ -116,6 +116,10 @@ class registroModelo {
             const nombreValidation = this.validarNombreApellidoTexto(registroData.nombre);
             const apellidoValidation = this.validarNombreApellidoTexto(registroData.apellido);
 
+            if (!dbcliente.db) {
+                await dbcliente.conectarDB();
+            }
+
             if (!nombreValidation.isValid) {
                 throw new Error(`Nombre inválido: ${nombreValidation.error}`);
             }
@@ -124,22 +128,17 @@ class registroModelo {
                 throw new Error(`Apellido inválido: ${apellidoValidation.error}`);
             }
 
-            // Validar contraseña
             const passwordValidation = registroModelo.validatePasswordStrength(registroData.clave);
             if (!passwordValidation.isValid) {
                 throw new Error(`Contraseña inválida: ${passwordValidation.errors.join(', ')}`);
             }
 
-            // Verificar si el usuario ya existe
             const existingUser = await colRegistro.findOne({ correo: registroData.correo });
             if (existingUser) {
                 throw new Error('El correo electrónico ya está registrado');
             }
 
-            // Hashear la contraseña
             const hashedPassword = await registroModelo.hashPassword(registroData.clave);
-
-            // Crear documento
             const registro = {
                 nombre: registroData.nombre,
                 apellido: registroData.apellido,
@@ -156,9 +155,17 @@ class registroModelo {
                 }
             };
 
+            console.log('📝 Datos recibidos en modelo:', registroData);
+
+            if (!dbcliente.db) {
+                console.log('🔗 Conectando a DB...');
+                await dbcliente.conectarDB();
+            }
+
             return await colRegistro.insertOne(registro);
         } catch (error) {
-            throw new Error('Error al crear el usuario');
+            console.error('❌ Error en modelo create:', error.message);
+            throw error;
         }
     }
 
@@ -196,7 +203,6 @@ class registroModelo {
                 const hashedPassword = await registroModelo.hashPassword(registroData.clave);
                 const usuarioActual = await colRegistro.findOne({ _id: new ObjectId(id) });
 
-                // Verificar si la nueva contraseña ya fue usada
                 for (const oldHash of usuarioActual.historicoClaves || []) {
                     if (await registroModelo.verifyPassword(registroData.clave, oldHash)) {
                         throw new Error('No puedes reutilizar una contraseña anterior');
@@ -233,7 +239,6 @@ class registroModelo {
             const usuario = await colRegistro.findOne({ correo: email });
 
             if (!usuario) {
-                // Timing attack protection
                 await bcrypt.compare(password, '$2b$12$fakehashforsecurity');
                 return { success: false, reason: 'Usuario no encontrado' };
             }
@@ -266,7 +271,6 @@ class registroModelo {
                 };
             }
 
-            // Autenticación exitosa
             await colRegistro.updateOne(
                 { _id: usuario._id },
                 {

@@ -5,6 +5,7 @@ import bodyParser from 'body-parser';
 import routeRegistro from './routes/registro.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import dbcliente from './config/dbcliente.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,6 +36,16 @@ app.get('/', (req, res) => {
 
 app.get('/registro-form', (req, res) => {
     res.render('registro-form', { title: 'Registro de Usuarios' });
+});
+
+dbcliente.conectarDB().then(() => {
+    const PORT = process.env.PORT || 5566;
+    app.listen(PORT, () => {
+        console.log(`🚀 Servidor en http://localhost:${PORT}`);
+    });
+}).catch((error) => {
+    console.error('❌ No se pudo conectar a la base de datos:', error);
+    process.exit(1);
 });
 
 // API

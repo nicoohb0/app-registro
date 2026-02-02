@@ -1,6 +1,5 @@
-// js/registro.js - Versión actualizada con validación mejorada
+
 document.addEventListener('DOMContentLoaded', function () {
-    // Elementos del DOM
     const navbar = document.querySelector('.navbar .d-flex');
     const sectionBienvenida = document.getElementById('sectionBienvenida');
     const userAvatar = document.getElementById('userAvatar');
@@ -8,11 +7,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const saludoUsuario = document.getElementById('saludoUsuario');
     const mensajeBienvenida = document.getElementById('mensajeBienvenida');
     const ultimaFecha = document.getElementById('ultimaFecha');
-
-    // Estado de usuario
     let usuarioLogueado = JSON.parse(localStorage.getItem('usuarioLogueado')) || null;
 
-    // Inicializar
     init();
 
     function init() {
@@ -31,7 +27,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // ========== CONFIGURAR VALIDACIONES ==========
     function configurarValidaciones() {
         const claveRegistro = document.getElementById('claveRegistro');
         const confirmarClave = document.getElementById('confirmarClave');
@@ -45,21 +40,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 const valor = this.value.trim();
                 const regex = /^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]*$/;
 
-                // Si el usuario intenta escribir números o caracteres especiales, los eliminamos
                 if (!regex.test(valor)) {
                     this.value = valor.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ\s]/g, '');
                 }
 
-                // Limitar a 15 caracteres
                 if (this.value.length > 15) {
                     this.value = this.value.substring(0, 15);
                 }
 
-                // Validar y mostrar feedback
                 validarCampoTexto(this, 'nombreError');
             });
 
-            // Validar al perder el foco
             nombre.addEventListener('blur', function () {
                 validarCampoTexto(this, 'nombreError');
             });
@@ -70,21 +61,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 const valor = this.value.trim();
                 const regex = /^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]*$/;
 
-                // Si el usuario intenta escribir números o caracteres especiales, los eliminamos
                 if (!regex.test(valor)) {
                     this.value = valor.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ\s]/g, '');
                 }
 
-                // Limitar a 15 caracteres
                 if (this.value.length > 15) {
                     this.value = this.value.substring(0, 15);
                 }
 
-                // Validar y mostrar feedback
                 validarCampoTexto(this, 'apellidoError');
             });
 
-            // Validar al perder el foco
             apellido.addEventListener('blur', function () {
                 validarCampoTexto(this, 'apellidoError');
             });
@@ -92,29 +79,23 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (claveRegistro && confirmarClave) {
             claveRegistro.parentNode.appendChild(indicadorFortaleza);
-
-            // Validación en tiempo real
             claveRegistro.addEventListener('input', async function () {
                 const password = this.value;
 
-                // Validar localmente primero
                 const tieneMinuscula = /[a-z]/.test(password);
                 const tieneMayuscula = /[A-Z]/.test(password);
                 const tieneNumero = /\d/.test(password);
                 const tieneEspecial = /[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(password);
                 const longitudOk = password.length >= 12;
 
-                // Mostrar indicadores visuales
                 actualizarIndicadorFortaleza(indicadorFortaleza, password);
 
-                // Validar contraseñas coincidentes
                 if (confirmarClave.value && password !== confirmarClave.value) {
                     confirmarClave.classList.add('is-invalid');
                 } else {
                     confirmarClave.classList.remove('is-invalid');
                 }
 
-                // Validar en el servidor para reglas complejas
                 if (password.length >= 8) {
                     try {
                         const respuesta = await fetch('/api/registro/validate-password', {
@@ -148,7 +129,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             });
 
-            // Botón para generar contraseña segura
             const generarBtn = document.createElement('button');
             generarBtn.type = 'button';
             generarBtn.className = 'btn btn-sm btn-outline-secondary mt-2';
@@ -189,7 +169,6 @@ document.addEventListener('DOMContentLoaded', function () {
         let fuerza = 0;
         let mensajes = [];
 
-        // Calcular fuerza
         if (longitud >= 12) fuerza += 2;
         else if (longitud >= 8) fuerza += 1;
 
@@ -198,7 +177,6 @@ document.addEventListener('DOMContentLoaded', function () {
         if (tieneNumero) fuerza += 1;
         if (tieneEspecial) fuerza += 1;
 
-        // Determinar nivel
         let nivel = '';
         let clase = '';
 
@@ -216,7 +194,6 @@ document.addEventListener('DOMContentLoaded', function () {
             clase = 'strength-weak';
         }
 
-        // Construir mensajes
         if (longitud < 12) mensajes.push(`${12 - longitud} caracteres más para el mínimo`);
         if (!tieneMinuscula) mensajes.push('Agrega minúsculas');
         if (!tieneMayuscula) mensajes.push('Agrega mayúsculas');
@@ -233,9 +210,6 @@ document.addEventListener('DOMContentLoaded', function () {
         elemento.className = `password-strength mt-2 ${clase}`;
     }
 
-    // ========== MANEJO DE FORMULARIOS ==========
-
-    // 1. Formulario de Registro
     const formRegistro = document.getElementById('formRegistro');
     if (formRegistro) {
         formRegistro.addEventListener('submit', async function (e) {
@@ -268,7 +242,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 console.log('Resultado:', resultado);
 
                 if (resultado.success) {
-                    // Auto-login
                     await loginUsuario({
                         nombre: datos.nombre,
                         apellido: datos.apellido,
@@ -289,7 +262,6 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // 2. Formulario de Inicio de Sesión
     const formularioInicio = document.getElementById('formularioInicio');
     if (formularioInicio) {
         formularioInicio.addEventListener('submit', async function (e) {
@@ -324,8 +296,6 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // ========== FUNCIONES DE AUTENTICACIÓN ==========
-
     async function loginUsuario(usuario) {
         usuarioLogueado = usuario;
         localStorage.setItem('usuarioLogueado', JSON.stringify(usuario));
@@ -338,8 +308,6 @@ document.addEventListener('DOMContentLoaded', function () {
         actualizarUI();
         alert('Sesión cerrada correctamente');
     }
-
-    // ========== FUNCIONES DE UI ==========
 
     function mostrarUsuarioLogueado() {
         let dropdownContainer = document.querySelector('.dropdown-usuario');
@@ -412,8 +380,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
         sectionBienvenida.style.display = 'block';
         sectionBienvenida.classList.add('fade-in');
-
-        // Actualizar contenido
         const horaActual = new Date().getHours();
         let saludo = '';
 
@@ -423,8 +389,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
         saludoUsuario.textContent = `${saludo},`;
         nombreUsuario.textContent = usuarioLogueado.nombre;
-
-        // Mensaje personalizado
         const mensajes = [
             'Tu seguridad es nuestra prioridad',
             'Cuenta protegida con criptografía de última generación',
@@ -434,8 +398,6 @@ document.addEventListener('DOMContentLoaded', function () {
         ];
 
         mensajeBienvenida.textContent = mensajes[Math.floor(Math.random() * mensajes.length)];
-
-        // Formatear fecha
         const fecha = new Date(usuarioLogueado.ultimoAcceso || new Date());
         const opciones = {
             weekday: 'long',
@@ -446,8 +408,6 @@ document.addEventListener('DOMContentLoaded', function () {
             minute: '2-digit'
         };
         ultimaFecha.textContent = fecha.toLocaleDateString('es-ES', opciones);
-
-        // Avatar con iniciales
         const iniciales = `${usuarioLogueado.nombre.charAt(0)}${usuarioLogueado.apellido.charAt(0)}`.toUpperCase();
         userAvatar.innerHTML = iniciales;
     }
@@ -458,10 +418,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // ========== FUNCIONES AUXILIARES ==========
-
     function configurarEventos() {
-        // Agregar eventos globales
         window.cerrarSesion = function () {
             logoutUsuario();
         };
@@ -497,7 +454,6 @@ document.addEventListener('DOMContentLoaded', function () {
             return false;
         }
 
-        // Validación básica del frontend
         if (clave.length < 12) {
             alert('La contraseña debe tener al menos 12 caracteres');
             return false;
@@ -522,13 +478,10 @@ function validarNombreApellido() {
     const apellido = document.getElementById('apellido');
     const nombreError = document.getElementById('nombreError');
     const apellidoError = document.getElementById('apellidoError');
-
-    // Expresión regular que permite letras, acentos, ñ y espacios
     const regex = /^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]{1,15}$/;
 
     let esValido = true;
 
-    // Validar nombre
     if (nombre) {
         if (!regex.test(nombre.value.trim())) {
             nombre.classList.add('is-invalid');
@@ -540,7 +493,6 @@ function validarNombreApellido() {
         }
     }
 
-    // Validar apellido
     if (apellido) {
         if (!regex.test(apellido.value.trim())) {
             apellido.classList.add('is-invalid');
@@ -581,8 +533,6 @@ function validarCampoTexto(campo, idError) {
     }
 }
 
-
-// Funciones para exportar
 window.generarContraseñaSegura = async function () {
     try {
         const respuesta = await fetch('/api/registro/generate-password');

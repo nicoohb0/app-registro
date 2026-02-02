@@ -3,26 +3,31 @@ import registroModel from '../model/registro.js';
 class registroController {
     async create(req, res) {
         try {
-            const { nombre, correo, clave } = req.body;
-            
-            if (!nombre || !correo || !clave) {
-                return res.status(400).json({ 
-                    success: false, 
-                    error: 'Datos incompletos' 
+            const { nombre, apellido, correo, clave } = req.body; // Agrega apellido
+
+            if (!nombre || !apellido || !correo || !clave) { // Valida todos los campos
+                return res.status(400).json({
+                    success: false,
+                    error: 'Datos incompletos. Todos los campos son requeridos.'
                 });
             }
 
-            await registroModel.create(req.body);
-            
-            // Respuesta simple y segura
-            res.status(201).json({ 
-                success: true, 
-                message: 'Usuario registrado exitosamente'
-            });
+            const result = await registroModel.create(req.body);
+
+            if (result.acknowledged) {
+                res.status(201).json({
+                    success: true,
+                    message: 'Usuario registrado exitosamente',
+                    id: result.insertedId
+                });
+            } else {
+                throw new Error('No se pudo crear el usuario');
+            }
         } catch (e) {
-            res.status(400).json({ 
-                success: false, 
-                error: 'No se pudo completar el registro' 
+            console.error('Error en create:', e.message);
+            res.status(400).json({
+                success: false,
+                error: e.message || 'No se pudo completar el registro'
             });
         }
     }
@@ -30,39 +35,37 @@ class registroController {
     async authenticate(req, res) {
         try {
             const { correo, clave } = req.body;
-            
+
             if (!correo || !clave) {
-                return res.status(400).json({ 
-                    success: false, 
-                    error: 'Datos requeridos' 
+                return res.status(400).json({
+                    success: false,
+                    error: 'Datos requeridos'
                 });
             }
 
             const result = await registroModel.authenticate(correo, clave);
-            
+
             if (result.success) {
                 res.status(200).json({
                     success: true,
                     usuario: result.usuario
                 });
             } else {
-                // Respuesta genérica para evitar información sensible
                 const response = {
                     success: false,
                     error: 'Credenciales inválidas'
                 };
-                
-                // Solo mostrar intentos restantes si existe
+
                 if (result.intentosRestantes !== undefined) {
                     response.intentosRestantes = result.intentosRestantes;
                 }
-                
+
                 res.status(401).json(response);
             }
         } catch (e) {
-            res.status(500).json({ 
-                success: false, 
-                error: 'Error en el proceso' 
+            res.status(500).json({
+                success: false,
+                error: 'Error en el proceso'
             });
         }
     }
