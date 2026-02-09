@@ -58,6 +58,7 @@ class registroController {
                 });
             }
         } catch (error) {
+            // Error CAPTCHA manejado silenciosamente
         }
     }
 
@@ -198,13 +199,65 @@ class registroController {
                 });
             }
 
-            const validation = registroModel.validatePasswordStrength(password);
+            const validation = await registroModel.validatePasswordStrength(password);
 
             res.status(200).json({
                 success: validation.isValid,
                 isValid: validation.isValid,
                 errors: validation.errors,
+                isCommonPassword: validation.isCommonPassword,
                 strength: this.calculatePasswordStrength(password)
+            });
+        } catch (e) {
+            res.status(500).json({
+                success: false,
+                error: e.message
+            });
+        }
+    }
+
+    // ========== NUEVA FUNCIÓN: Obtener lista de contraseñas comunes ==========
+    async getCommonPasswords(req, res) {
+        try {
+            const commonPasswords = await registroModel.loadCommonPasswords();
+            
+            res.status(200).json({
+                success: true,
+                count: commonPasswords.length,
+                passwords: commonPasswords.slice(0, 50), // Devuelve solo las primeras 50
+                message: `Se cargaron ${commonPasswords.length} contraseñas comunes del archivo password.txt`
+            });
+        } catch (e) {
+            res.status(500).json({
+                success: false,
+                error: e.message
+            });
+        }
+    }
+
+    // ========== NUEVA FUNCIÓN: Verificar si una contraseña es común ==========
+    async checkCommonPassword(req, res) {
+        try {
+            const { password } = req.body;
+
+            if (!password) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Contraseña requerida'
+                });
+            }
+
+            const commonCheck = await registroModel.validateAgainstCommonPasswords(password);
+            
+            res.status(200).json({
+                success: true,
+                isCommon: commonCheck.isCommon,
+                message: commonCheck.isCommon 
+                    ? 'Esta contraseña está en la lista de contraseñas comunes' 
+                    : 'Esta contraseña no está en la lista de contraseñas comunes',
+                recommendations: commonCheck.isCommon 
+                    ? ['Elige una contraseña más única', 'Usa una combinación de palabras poco común', 'Añade números y caracteres especiales']
+                    : ['Tu contraseña parece ser única', '¡Buen trabajo eligiendo una contraseña segura!']
             });
         } catch (e) {
             res.status(500).json({

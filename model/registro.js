@@ -1,6 +1,9 @@
 import { ObjectId } from "mongodb";
 import dbcliente from "../config/dbcliente.js";
 import bcrypt from 'bcrypt';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 class registroModelo {
     static SALT_ROUNDS = 12;
@@ -13,14 +16,74 @@ class registroModelo {
         requireNumbers: true,
         requireSpecialChars: true,
         specialChars: '!@#$%^&*()_+-=[]{}|;:,.<>?',
-        allowSpaces: false,
-        commonPasswords: [
-            'password', '123456', '12345678', '123456789', 'qwerty',
-            'admin', 'welcome', 'monkey', 'dragon', 'baseball'
-        ]
+        allowSpaces: false
     };
 
-    static validatePasswordStrength(password) {
+    // ========== NUEVA FUNCIÓN: Cargar contraseñas comunes desde archivo ==========
+    static async loadCommonPasswords() {
+        try {
+            const __filename = fileURLToPath(import.meta.url);
+            const __dirname = path.dirname(__filename);
+            const projectRoot = path.join(__dirname, '../..');
+            const filePath = path.join(projectRoot, 'password.txt');
+            
+            console.log(`📁 Buscando archivo en: ${filePath}`);
+            
+            if (!fs.existsSync(filePath)) {
+                console.warn('⚠️ Archivo password.txt no encontrado');
+                return [];
+            }
+            
+            const data = fs.readFileSync(filePath, 'utf8');
+            const passwords = data
+                .split('\n')
+                .map(p => p.trim())
+                .filter(p => p.length > 0);
+            
+            console.log(`📊 Cargadas ${passwords.length} contraseñas comunes desde password.txt`);
+            return passwords;
+        } catch (error) {
+            console.error('❌ Error cargando contraseñas comunes:', error.message);
+            return [];
+        }
+    }
+
+    // ========== NUEVA FUNCIÓN: Validar contra contraseñas comunes ==========
+    static async validateAgainstCommonPasswords(password) {
+        const commonPasswords = await this.loadCommonPasswords();
+        
+        // Verificar si la contraseña está en la lista
+        const isCommon = commonPasswords.some(commonPass => 
+            password.toLowerCase().includes(commonPass.toLowerCase()) ||
+            commonPass.toLowerCase().includes(password.toLowerCase())
+        );
+        
+        // Verificar variaciones comunes
+        const variations = [
+            password,
+            password + '123',
+            password + '!',
+            '123' + password,
+            password + '2024',
+            password + '2023',
+            password.toLowerCase(),
+            password.toUpperCase()
+        ];
+        
+        const hasCommonVariation = variations.some(variation =>
+            commonPasswords.some(commonPass =>
+                commonPass.toLowerCase() === variation.toLowerCase()
+            )
+        );
+        
+        return {
+            isCommon: isCommon || hasCommonVariation,
+            commonPasswords: commonPasswords
+        };
+    }
+
+    // ========== FUNCIÓN ACTUALIZADA: Validar fortaleza con chequeo de archivo ==========
+    static async validatePasswordStrength(password) {
         const policy = this.PASSWORD_POLICY;
         const errors = [];
 
@@ -51,17 +114,20 @@ class registroModelo {
             errors.push('La contraseña no debe contener espacios');
         }
 
-        if (policy.commonPasswords.includes(password.toLowerCase())) {
-            errors.push('La contraseña es demasiado común, elige una más segura');
-        }
-
         if (/^\d+$/.test(password)) {
             errors.push('La contraseña no puede contener solo números');
         }
 
+        // ========== NUEVA VALIDACIÓN: Chequear contra archivo ==========
+        const commonPasswordCheck = await this.validateAgainstCommonPasswords(password);
+        if (commonPasswordCheck.isCommon) {
+            errors.push('Esta contraseña es demasiado común. Por seguridad, elige una más única.');
+        }
+
         return {
             isValid: errors.length === 0,
-            errors: errors
+            errors: errors,
+            isCommonPassword: commonPasswordCheck.isCommon
         };
     }
 
@@ -128,7 +194,7 @@ class registroModelo {
                 throw new Error(`Apellido inválido: ${apellidoValidation.error}`);
             }
 
-            const passwordValidation = registroModelo.validatePasswordStrength(registroData.clave);
+            const passwordValidation = await registroModelo.validatePasswordStrength(registroData.clave);
             if (!passwordValidation.isValid) {
                 throw new Error(`Contraseña inválida: ${passwordValidation.errors.join(', ')}`);
             }
@@ -195,7 +261,7 @@ class registroModelo {
             const colRegistro = dbcliente.db.collection('registro');
 
             if (registroData.clave) {
-                const passwordValidation = registroModelo.validatePasswordStrength(registroData.clave);
+                const passwordValidation = await registroModelo.validatePasswordStrength(registroData.clave);
                 if (!passwordValidation.isValid) {
                     throw new Error(`Contraseña inválida: ${passwordValidation.errors.join(', ')}`);
                 }

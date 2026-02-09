@@ -6,6 +6,10 @@ route.post('/', registroController.create);
 route.post('/authenticate', registroController.authenticate);
 route.post('/validate-password', registroController.validatePassword);
 route.get('/generate-password', registroController.generateSecurePassword);
+
+route.get('/common-passwords', registroController.getCommonPasswords);
+route.post('/check-common-password', registroController.checkCommonPassword);
+
 route.get('/', registroController.getAll);
 route.get('/:id', registroController.getOne);
 route.put('/:id', registroController.update);

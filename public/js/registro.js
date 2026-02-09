@@ -533,7 +533,6 @@ function validarCampoTexto(campo, idError) {
     }
 }
 
-
 async function enviarRegistro(datos) {
     try {
         const token = await grecaptcha.execute('TU_SITE_KEY', { action: 'submit' });
@@ -549,8 +548,231 @@ async function enviarRegistro(datos) {
     }
 }
 
+// ... (código existente hasta la función actualizarIndicadorFortaleza)
 
+    function actualizarIndicadorFortaleza(elemento, password) {
+        if (!password) {
+            elemento.innerHTML = '';
+            elemento.className = 'password-strength mt-2';
+            return;
+        }
 
+        const longitud = password.length;
+        const tieneMinuscula = /[a-z]/.test(password);
+        const tieneMayuscula = /[A-Z]/.test(password);
+        const tieneNumero = /\d/.test(password);
+        const tieneEspecial = /[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(password);
+
+        let fuerza = 0;
+        let mensajes = [];
+
+        if (longitud >= 12) fuerza += 2;
+        else if (longitud >= 8) fuerza += 1;
+
+        if (tieneMinuscula) fuerza += 1;
+        if (tieneMayuscula) fuerza += 1;
+        if (tieneNumero) fuerza += 1;
+        if (tieneEspecial) fuerza += 1;
+
+        let nivel = '';
+        let clase = '';
+
+        if (fuerza >= 6) {
+            nivel = 'Muy fuerte';
+            clase = 'strength-very-strong';
+        } else if (fuerza >= 4) {
+            nivel = 'Fuerte';
+            clase = 'strength-strong';
+        } else if (fuerza >= 2) {
+            nivel = 'Moderada';
+            clase = 'strength-moderate';
+        } else {
+            nivel = 'Débil';
+            clase = 'strength-weak';
+        }
+
+        if (longitud < 12) mensajes.push(`${12 - longitud} caracteres más para el mínimo`);
+        if (!tieneMinuscula) mensajes.push('Agrega minúsculas');
+        if (!tieneMayuscula) mensajes.push('Agrega mayúsculas');
+        if (!tieneNumero) mensajes.push('Agrega números');
+        if (!tieneEspecial) mensajes.push('Agrega caracteres especiales');
+
+        // ========== NUEVO: Chequear contra contraseñas comunes ==========
+        elemento.innerHTML = `
+            <div class="strength-bar ${clase}">
+                <div class="strength-fill" style="width: ${Math.min(100, fuerza * 16.66)}%"></div>
+            </div>
+            <small class="d-block mt-1">Fortaleza: <strong>${nivel}</strong></small>
+            <small class="d-block mt-1 text-warning" id="commonPasswordWarning" style="display: none;">
+                ⚠️ Esta contraseña podría ser común
+            </small>
+            ${mensajes.length > 0 ? `<small class="d-block text-muted">Sugerencias: ${mensajes.join(', ')}</small>` : ''}
+        `;
+        elemento.className = `password-strength mt-2 ${clase}`;
+
+        // Verificar si es contraseña común
+        if (password.length >= 6) {
+            checkCommonPassword(password, elemento);
+        }
+    }
+
+    // ========== NUEVA FUNCIÓN: Verificar contraseña común ==========
+    async function checkCommonPassword(password, elemento) {
+        try {
+            const respuesta = await fetch('/api/registro/check-common-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: password })
+            });
+
+            const resultado = await respuesta.json();
+            
+            if (resultado.success && resultado.isCommon) {
+                const warningElement = elemento.querySelector('#commonPasswordWarning');
+                if (warningElement) {
+                    warningElement.style.display = 'block';
+                    warningElement.innerHTML = `⚠️ <strong>Advertencia de seguridad:</strong> Esta contraseña está en la lista de contraseñas comunes.`;
+                    warningElement.classList.add('text-danger');
+                    warningElement.classList.remove('text-warning');
+                }
+                
+                // Agregar mensaje adicional
+                const existingMessages = elemento.querySelectorAll('.text-muted');
+                if (existingMessages.length > 0) {
+                    const lastMessage = existingMessages[existingMessages.length - 1];
+                    lastMessage.innerHTML += '<br>🚫 <strong>Se recomienda:</strong> Elegir una contraseña más única y compleja';
+                    lastMessage.classList.add('text-danger');
+                }
+            }
+        } catch (error) {
+            console.error('Error verificando contraseña común:', error);
+        }
+    }
+
+// ... (resto del código existente)
+
+    // ========== NUEVA FUNCIÓN PARA EL BOTÓN DE CONTRASEÑAS COMUNES ==========
+    async function mostrarContraseñasComunes() {
+        try {
+            const respuesta = await fetch('/api/registro/common-passwords');
+            const resultado = await respuesta.json();
+            
+            if (resultado.success) {
+                const passwordsList = resultado.passwords.join(', ');
+                alert(`📋 Lista de contraseñas comunes detectadas:\n\n${passwordsList}\n\nTotal: ${resultado.count} contraseñas\n\n⚠️ Evita usar estas contraseñas por seguridad.`);
+            }
+        } catch (error) {
+            console.error('Error obteniendo contraseñas comunes:', error);
+            alert('No se pudo cargar la lista de contraseñas comunes');
+        }
+    }
+
+    // Agregar botón para ver contraseñas comunes
+    function agregarBotonContraseñasComunes() {
+        const formulario = document.getElementById('formRegistro');
+        if (formulario) {
+            const botonDiv = document.createElement('div');
+            botonDiv.className = 'text-center mt-3';
+            botonDiv.innerHTML = `
+                <button type="button" class="btn btn-outline-info btn-sm" onclick="mostrarContraseñasComunes()">
+                    <i class="fas fa-exclamation-triangle me-1"></i>Ver contraseñas comunes a evitar
+                </button>
+                <p class="small text-muted mt-1">Conoce qué contraseñas son vulnerables</p>
+            `;
+            formulario.appendChild(botonDiv);
+        }
+    }
+
+// ... (al final del DOMContentLoaded, después de configurar eventos)
+
+    function configurarEventos() {
+        // ... (eventos existentes)
+
+        window.mostrarContraseñasComunes = function () {
+            mostrarContraseñasComunes();
+        };
+
+        // Agregar botón después de que se cargue el DOM
+        setTimeout(agregarBotonContraseñasComunes, 1000);
+    }
+
+// ... (resto del código)
+
+// ========== NUEVA FUNCIÓN GLOBAL ==========
+window.mostrarContraseñasComunes = async function () {
+    try {
+        const respuesta = await fetch('/api/registro/common-passwords');
+        const resultado = await respuesta.json();
+        
+        if (resultado.success) {
+            // Crear modal para mostrar las contraseñas
+            const modalHTML = `
+                <div class="modal fade" id="modalContraseñasComunes" tabindex="-1">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header bg-warning">
+                                <h5 class="modal-title">⚠️ Contraseñas Comunes a Evitar</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p class="text-danger"><strong>Advertencia:</strong> Estas contraseñas son vulnerables y frecuentemente usadas en ataques.</p>
+                                <div class="alert alert-info">
+                                    <i class="fas fa-lightbulb me-2"></i>
+                                    <strong>Consejo:</strong> No uses estas contraseñas ni variaciones de ellas.
+                                </div>
+                                <div class="common-passwords-list">
+                                    ${resultado.passwords.map(pass => 
+                                        `<span class="badge bg-danger me-1 mb-1">${pass}</span>`
+                                    ).join('')}
+                                </div>
+                                <div class="mt-3">
+                                    <p><strong>Total en lista:</strong> ${resultado.count} contraseñas</p>
+                                    <p><strong>Fuente:</strong> Archivo password.txt del sistema</p>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                                <button type="button" class="btn btn-primary" onclick="copiarListaContraseñas()">
+                                    <i class="fas fa-copy me-1"></i>Copiar Lista
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Agregar modal al DOM si no existe
+            if (!document.getElementById('modalContraseñasComunes')) {
+                const modalContainer = document.createElement('div');
+                modalContainer.innerHTML = modalHTML;
+                document.body.appendChild(modalContainer);
+            }
+            
+            // Mostrar modal
+            const modal = new bootstrap.Modal(document.getElementById('modalContraseñasComunes'));
+            modal.show();
+        }
+    } catch (error) {
+        console.error('Error obteniendo contraseñas comunes:', error);
+        alert('No se pudo cargar la lista de contraseñas comunes');
+    }
+};
+
+window.copiarListaContraseñas = async function () {
+    try {
+        const respuesta = await fetch('/api/registro/common-passwords');
+        const resultado = await respuesta.json();
+        
+        if (resultado.success) {
+            const texto = `LISTA DE CONTRASEÑAS COMUNES A EVITAR:\n\n${resultado.passwords.join('\n')}\n\nTotal: ${resultado.count} contraseñas\n\n⚠️ No uses estas contraseñas por seguridad.`;
+            
+            await navigator.clipboard.writeText(texto);
+            alert('Lista copiada al portapapeles');
+        }
+    } catch (error) {
+        alert('Error al copiar la lista');
+    }
+};
 
 window.generarContraseñaSegura = async function () {
     try {
