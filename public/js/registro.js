@@ -533,6 +533,25 @@ function validarCampoTexto(campo, idError) {
     }
 }
 
+
+async function enviarRegistro(datos) {
+    try {
+        const token = await grecaptcha.execute('TU_SITE_KEY', { action: 'submit' });
+        datos.recaptchaToken = token;
+        const respuesta = await fetch('/api/registro', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(datos)
+        });
+        
+    } catch (error) {
+        console.error('Error CAPTCHA:', error);
+    }
+}
+
+
+
+
 window.generarContraseñaSegura = async function () {
     try {
         const respuesta = await fetch('/api/registro/generate-password');

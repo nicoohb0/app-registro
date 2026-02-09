@@ -48,6 +48,58 @@ dbcliente.conectarDB().then(() => {
     process.exit(1);
 });
 
+// HSTS
+app.use((req, res, next) => {
+    if (process.env.NODE_ENV === 'production' && req.secure)
+    {
+        res.setHeader(
+            'Strict-Transport-Security',
+            'max-age-3156000; includeSubDomains; preload'
+        );
+    }
+    next();
+});
+
+// CSP
+app.use((req, res, next) => {
+    const csp = [
+        "default-src 'self'",
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com https://cdnjs.cloudflare.com",
+        "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com",
+        "img-src 'self' data: https:",
+        "connect-src 'self'",
+        "frame-ancestors 'none'",
+        "base-uri 'self'",
+        "form-action 'self'",
+        "object-src 'none'"
+    ].join('; ');
+
+    res.setHeader('Content-Security-Policy', csp);
+    res.setHeader('X-Content-Security-Policy', csp);
+    res.setHeader('X-WebKit-CSP', csp);
+
+    next();
+});
+
+app.post('/csp-report', (req, res) => {
+    console.log('CSP Violation:', req.body);
+    res.status(204).end();
+});
+
+// CAPTCHA
+app.use((req, res, next) => {
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 
+        'camera=(), microphone=(), geolocation=(), payment=()'
+    );
+    
+    next();
+});
+
+
 // API
 app.use('/api/registro', routeRegistro);
 
@@ -57,9 +109,9 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: 'Error interno del servidor' });
 });
 
-// Iniciar
-const PORT = process.env.PORT || 5566;
-app.listen(PORT, () => {
-    console.log(`🚀 Servidor en http://localhost:${PORT}`);
-    // console.log(`📝 API Registro: http://localhost:${PORT}/api/registro`);
-});
+// // Iniciar
+// const PORT = process.env.PORT || 5566;
+// app.listen(PORT, () => {
+//     console.log(`🚀 Servidor en http://localhost:${PORT}`);
+//     // console.log(`📝 API Registro: http://localhost:${PORT}/api/registro`);
+// });

@@ -3,9 +3,9 @@ import registroModel from '../model/registro.js';
 class registroController {
     async create(req, res) {
         try {
-            const { nombre, apellido, correo, clave } = req.body; // Agrega apellido
+            const { nombre, apellido, correo, clave } = req.body;
 
-            if (!nombre || !apellido || !correo || !clave) { // Valida todos los campos
+            if (!nombre || !apellido || !correo || !clave) {
                 return res.status(400).json({
                     success: false,
                     error: 'Datos incompletos. Todos los campos son requeridos.'
@@ -29,6 +29,35 @@ class registroController {
                 success: false,
                 error: e.message || 'No se pudo completar el registro'
             });
+        }
+
+        try {
+            // Verificar CAPTCHA
+            const { recaptchaToken } = req.body;
+
+            if (!recaptchaToken) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Verificación CAPTCHA requerida'
+                });
+            }
+
+            const verificationUrl = 'https://www.google.com/recaptcha/api/siteverify';
+            const response = await fetch(verificationUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `secret=TU_SECRET_KEY&response=${recaptchaToken}`
+            });
+
+            const data = await response.json();
+
+            if (!data.success || data.score < 0.5) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Verificación CAPTCHA fallida'
+                });
+            }
+        } catch (error) {
         }
     }
 
