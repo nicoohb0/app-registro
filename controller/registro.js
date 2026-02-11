@@ -1,15 +1,57 @@
 import registroModel from '../model/registro.js';
 
 class registroController {
+    // ========== MUEVE ESTA FUNCIÓN FUERA DEL CONTROLLER ==========
+    calculatePasswordStrength(password) {
+        let score = 0;
+
+        if (password.length >= 12) score += 2;
+        else if (password.length >= 8) score += 1;
+
+        if (/[A-Z]/.test(password)) score += 1;
+        if (/[a-z]/.test(password)) score += 1;
+        if (/\d/.test(password)) score += 1;
+        if (/[^A-Za-z0-9]/.test(password)) score += 1;
+
+        if (score >= 6) return 'Muy fuerte';
+        if (score >= 4) return 'Fuerte';
+        if (score >= 2) return 'Moderada';
+        return 'Débil';
+    }
+
     async create(req, res) {
         try {
-            const { nombre, apellido, correo, clave } = req.body;
+            const { nombre, apellido, correo, clave, recaptchaToken } = req.body;
 
             if (!nombre || !apellido || !correo || !clave) {
                 return res.status(400).json({
                     success: false,
                     error: 'Datos incompletos. Todos los campos son requeridos.'
                 });
+            }
+
+            // ===== CAPTCHA - SOLO EN PRODUCCIÓN Y SI HAY TOKEN =====
+            if (process.env.NODE_ENV === 'production' && recaptchaToken) {
+                try {
+                    const verificationUrl = 'https://www.google.com/recaptcha/api/siteverify';
+                    const response = await fetch(verificationUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: `secret=${process.env.RECAPTCHA_SECRET_KEY || 'TU_SECRET_KEY'}&response=${recaptchaToken}`
+                    });
+
+                    const data = await response.json();
+
+                    if (!data.success || data.score < 0.5) {
+                        return res.status(400).json({
+                            success: false,
+                            error: 'Verificación CAPTCHA fallida'
+                        });
+                    }
+                } catch (captchaError) {
+                    console.error('Error en CAPTCHA:', captchaError);
+                    // NO bloqueamos el registro por error de CAPTCHA en desarrollo
+                }
             }
 
             const result = await registroModel.create(req.body);
@@ -23,42 +65,38 @@ class registroController {
             } else {
                 throw new Error('No se pudo crear el usuario');
             }
+
         } catch (e) {
             console.error('Error en create:', e.message);
+            
+            if (e.message && e.message.includes('común')) {
+                return res.status(400).json({
+                    success: false,
+                    error: e.message,
+                    tipo: 'CONTRASEÑA_COMUN'
+                });
+            }
+            
+            if (e.message && e.message.includes('Contraseña inválida')) {
+                return res.status(400).json({
+                    success: false,
+                    error: e.message,
+                    tipo: 'CONTRASEÑA_INVALIDA'
+                });
+            }
+            
+            if (e.message && e.message.includes('ya está registrado')) {
+                return res.status(400).json({
+                    success: false,
+                    error: e.message,
+                    tipo: 'CORREO_DUPLICADO'
+                });
+            }
+
             res.status(400).json({
                 success: false,
                 error: e.message || 'No se pudo completar el registro'
             });
-        }
-
-        try {
-            // Verificar CAPTCHA
-            const { recaptchaToken } = req.body;
-
-            if (!recaptchaToken) {
-                return res.status(400).json({
-                    success: false,
-                    error: 'Verificación CAPTCHA requerida'
-                });
-            }
-
-            const verificationUrl = 'https://www.google.com/recaptcha/api/siteverify';
-            const response = await fetch(verificationUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: `secret=TU_SECRET_KEY&response=${recaptchaToken}`
-            });
-
-            const data = await response.json();
-
-            if (!data.success || data.score < 0.5) {
-                return res.status(400).json({
-                    success: false,
-                    error: 'Verificación CAPTCHA fallida'
-                });
-            }
-        } catch (error) {
-            // Error CAPTCHA manejado silenciosamente
         }
     }
 
@@ -69,7 +107,7 @@ class registroController {
             if (!correo || !clave) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Datos requeridos'
+                    error: 'Correo y contraseña son requeridos'
                 });
             }
 
@@ -83,7 +121,7 @@ class registroController {
             } else {
                 const response = {
                     success: false,
-                    error: 'Credenciales inválidas'
+                    error: result.reason || 'Credenciales inválidas'
                 };
 
                 if (result.intentosRestantes !== undefined) {
@@ -93,9 +131,10 @@ class registroController {
                 res.status(401).json(response);
             }
         } catch (e) {
+            console.error('Error en authenticate:', e);
             res.status(500).json({
                 success: false,
-                error: 'Error en el proceso'
+                error: 'Error en el proceso de autenticación'
             });
         }
     }
@@ -108,6 +147,7 @@ class registroController {
                 usuarios: data
             });
         } catch (e) {
+            console.error('Error en getAll:', e);
             res.status(500).json({
                 success: false,
                 error: e.message
@@ -132,6 +172,7 @@ class registroController {
                 usuario: data
             });
         } catch (e) {
+            console.error('Error en getOne:', e);
             res.status(500).json({
                 success: false,
                 error: e.message
@@ -143,12 +184,23 @@ class registroController {
         try {
             const { id } = req.params;
             const data = await registroModel.update(id, req.body);
+            
             res.status(200).json({
                 success: true,
                 message: 'Usuario actualizado exitosamente',
                 modifiedCount: data.modifiedCount
             });
         } catch (e) {
+            console.error('Error en update:', e);
+            
+            if (e.message && e.message.includes('común')) {
+                return res.status(400).json({
+                    success: false,
+                    error: e.message,
+                    tipo: 'CONTRASEÑA_COMUN'
+                });
+            }
+            
             res.status(400).json({
                 success: false,
                 error: e.message
@@ -160,12 +212,14 @@ class registroController {
         try {
             const { id } = req.params;
             const data = await registroModel.delete(id);
+            
             res.status(200).json({
                 success: true,
                 message: 'Usuario eliminado exitosamente',
                 deletedCount: data.deletedCount
             });
         } catch (e) {
+            console.error('Error en delete:', e);
             res.status(500).json({
                 success: false,
                 error: e.message
@@ -178,9 +232,11 @@ class registroController {
             const securePassword = registroModel.generateSecurePassword();
             res.status(200).json({
                 success: true,
-                password: securePassword
+                password: securePassword,
+                message: 'Contraseña segura generada'
             });
         } catch (e) {
+            console.error('Error en generateSecurePassword:', e);
             res.status(500).json({
                 success: false,
                 error: e.message
@@ -205,10 +261,12 @@ class registroController {
                 success: validation.isValid,
                 isValid: validation.isValid,
                 errors: validation.errors,
-                isCommonPassword: validation.isCommonPassword,
+                isCommonPassword: validation.isCommonPassword || false,
+                // ===== CORREGIDO: usar this.calculatePasswordStrength =====
                 strength: this.calculatePasswordStrength(password)
             });
         } catch (e) {
+            console.error('Error en validatePassword:', e);
             res.status(500).json({
                 success: false,
                 error: e.message
@@ -216,7 +274,6 @@ class registroController {
         }
     }
 
-    // ========== NUEVA FUNCIÓN: Obtener lista de contraseñas comunes ==========
     async getCommonPasswords(req, res) {
         try {
             const commonPasswords = await registroModel.loadCommonPasswords();
@@ -224,10 +281,11 @@ class registroController {
             res.status(200).json({
                 success: true,
                 count: commonPasswords.length,
-                passwords: commonPasswords.slice(0, 50), // Devuelve solo las primeras 50
+                passwords: commonPasswords.slice(0, 50),
                 message: `Se cargaron ${commonPasswords.length} contraseñas comunes del archivo password.txt`
             });
         } catch (e) {
+            console.error('Error en getCommonPasswords:', e);
             res.status(500).json({
                 success: false,
                 error: e.message
@@ -235,7 +293,6 @@ class registroController {
         }
     }
 
-    // ========== NUEVA FUNCIÓN: Verificar si una contraseña es común ==========
     async checkCommonPassword(req, res) {
         try {
             const { password } = req.body;
@@ -253,35 +310,27 @@ class registroController {
                 success: true,
                 isCommon: commonCheck.isCommon,
                 message: commonCheck.isCommon 
-                    ? 'Esta contraseña está en la lista de contraseñas comunes' 
-                    : 'Esta contraseña no está en la lista de contraseñas comunes',
+                    ? '⚠️ ¡ALERTA! Esta contraseña está en la lista de contraseñas comunes y NO es segura' 
+                    : '✅ Esta contraseña NO está en la lista de contraseñas comunes',
                 recommendations: commonCheck.isCommon 
-                    ? ['Elige una contraseña más única', 'Usa una combinación de palabras poco común', 'Añade números y caracteres especiales']
-                    : ['Tu contraseña parece ser única', '¡Buen trabajo eligiendo una contraseña segura!']
+                    ? [
+                        'Elige una contraseña más única',
+                        'Usa una combinación de palabras poco común',
+                        'Añade números y caracteres especiales',
+                        'No uses palabras del diccionario'
+                      ]
+                    : [
+                        'Tu contraseña parece ser única',
+                        '¡Excelente trabajo eligiendo una contraseña segura!'
+                      ]
             });
         } catch (e) {
+            console.error('Error en checkCommonPassword:', e);
             res.status(500).json({
                 success: false,
                 error: e.message
             });
         }
-    }
-
-    calculatePasswordStrength(password) {
-        let score = 0;
-
-        if (password.length >= 12) score += 2;
-        else if (password.length >= 8) score += 1;
-
-        if (/[A-Z]/.test(password)) score += 1;
-        if (/[a-z]/.test(password)) score += 1;
-        if (/\d/.test(password)) score += 1;
-        if (/[^A-Za-z0-9]/.test(password)) score += 1;
-
-        if (score >= 6) return 'Muy fuerte';
-        if (score >= 4) return 'Fuerte';
-        if (score >= 2) return 'Moderada';
-        return 'Débil';
     }
 }
 

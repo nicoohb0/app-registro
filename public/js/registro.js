@@ -1,4 +1,3 @@
-
 document.addEventListener('DOMContentLoaded', function () {
     const navbar = document.querySelector('.navbar .d-flex');
     const sectionBienvenida = document.getElementById('sectionBienvenida');
@@ -15,6 +14,8 @@ document.addEventListener('DOMContentLoaded', function () {
         actualizarUI();
         configurarEventos();
         configurarValidaciones();
+        setupPasswordToggle();
+        setupLoginPasswordToggle();
     }
 
     function actualizarUI() {
@@ -27,6 +28,105 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    // ========== FUNCIÓN PARA VERIFICAR CONTRASEÑA COMÚN ==========
+    async function validarContraseñaComun(password) {
+        try {
+            const respuesta = await fetch('/api/registro/check-common-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: password })
+            });
+
+            const resultado = await respuesta.json();
+
+            if (resultado.success && resultado.isCommon) {
+                return {
+                    esComun: true,
+                    mensaje: resultado.message,
+                    recomendaciones: resultado.recommendations || []
+                };
+            }
+
+            return {
+                esComun: false,
+                mensaje: 'Contraseña segura',
+                recomendaciones: resultado.recommendations || []
+            };
+        } catch (error) {
+            console.error('Error verificando contraseña común:', error);
+            return {
+                esComun: false,
+                mensaje: 'No se pudo verificar',
+                recomendaciones: []
+            };
+        }
+    }
+
+    // ========== FUNCIÓN PARA VALIDAR CONTRASEÑA COMÚN EN TIEMPO REAL ==========
+    async function checkCommonPassword(password, elemento) {
+        if (password.length < 6) return;
+
+        try {
+            const respuesta = await fetch('/api/registro/check-common-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: password })
+            });
+
+            const resultado = await respuesta.json();
+
+            if (resultado.success && resultado.isCommon) {
+                const warningElement = elemento.querySelector('#commonPasswordWarning');
+                if (warningElement) {
+                    warningElement.style.display = 'block';
+                    warningElement.innerHTML = `
+                        ⚠️ <strong class="text-danger">¡CONTRASEÑA NO SEGURA!</strong><br>
+                        ${resultado.message}<br>
+                        <small class="text-muted">Recomendaciones: ${resultado.recommendations ? resultado.recommendations.join(' • ') : 'Elige una contraseña más única'}</small>
+                    `;
+                    warningElement.classList.add('text-danger', 'fw-bold');
+                    warningElement.classList.remove('text-warning');
+                }
+
+                const claveRegistro = document.getElementById('claveRegistro');
+                if (claveRegistro) {
+                    claveRegistro.classList.add('is-invalid');
+                    claveRegistro.classList.add('is-invalid-common');
+
+                    let errorDiv = claveRegistro.parentNode.querySelector('.common-password-error');
+                    if (!errorDiv) {
+                        errorDiv = document.createElement('div');
+                        errorDiv.className = 'invalid-feedback common-password-error';
+                        claveRegistro.parentNode.appendChild(errorDiv);
+                    }
+                    errorDiv.textContent = '❌ Esta contraseña está en la lista de contraseñas comunes y no es segura';
+                    errorDiv.style.display = 'block';
+                }
+            } else {
+                const warningElement = elemento.querySelector('#commonPasswordWarning');
+                if (warningElement) {
+                    warningElement.style.display = 'none';
+                }
+
+                const claveRegistro = document.getElementById('claveRegistro');
+                if (claveRegistro && !claveRegistro.classList.contains('is-invalid-other')) {
+                    if (!claveRegistro.classList.contains('is-invalid')) {
+                        claveRegistro.classList.remove('is-invalid');
+                    }
+                    claveRegistro.classList.remove('is-invalid-common');
+
+                    const errorDiv = claveRegistro.parentNode.querySelector('.common-password-error');
+                    if (errorDiv) {
+                        errorDiv.style.display = 'none';
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error verificando contraseña común:', error);
+        }
+    }
+
+    // ========== CONFIGURAR VALIDACIONES ==========
     function configurarValidaciones() {
         const claveRegistro = document.getElementById('claveRegistro');
         const confirmarClave = document.getElementById('confirmarClave');
@@ -78,21 +178,25 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         if (claveRegistro && confirmarClave) {
-            claveRegistro.parentNode.appendChild(indicadorFortaleza);
+            // ===== CORREGIDO: Buscar el contenedor correcto =====
+            const inputGroup = claveRegistro.closest('.input-group');
+            const contenedorPassword = inputGroup ? inputGroup.parentNode : claveRegistro.parentNode;
+            
+            // Insertar el indicador de fortaleza DESPUÉS del input-group
+            if (inputGroup) {
+                inputGroup.insertAdjacentElement('afterend', indicadorFortaleza);
+            } else {
+                contenedorPassword.appendChild(indicadorFortaleza);
+            }
+            
             claveRegistro.addEventListener('input', async function () {
                 const password = this.value;
-
-                const tieneMinuscula = /[a-z]/.test(password);
-                const tieneMayuscula = /[A-Z]/.test(password);
-                const tieneNumero = /\d/.test(password);
-                const tieneEspecial = /[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(password);
-                const longitudOk = password.length >= 12;
 
                 actualizarIndicadorFortaleza(indicadorFortaleza, password);
 
                 if (confirmarClave.value && password !== confirmarClave.value) {
                     confirmarClave.classList.add('is-invalid');
-                } else {
+                } else if (confirmarClave.value) {
                     confirmarClave.classList.remove('is-invalid');
                 }
 
@@ -109,9 +213,13 @@ document.addEventListener('DOMContentLoaded', function () {
                         if (!resultado.isValid) {
                             this.setCustomValidity(resultado.errors.join('. '));
                             this.classList.add('is-invalid');
+                            this.classList.add('is-invalid-other');
                         } else {
                             this.setCustomValidity('');
-                            this.classList.remove('is-invalid');
+                            if (!this.classList.contains('is-invalid-common')) {
+                                this.classList.remove('is-invalid');
+                            }
+                            this.classList.remove('is-invalid-other');
                         }
                     } catch (error) {
                         console.error('Error en validación:', error);
@@ -129,27 +237,64 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             });
 
+            // ===== BOTÓN GENERAR CONTRASEÑA - CORREGIDO =====
+            // Crear contenedor para el botón
+            const botonContainer = document.createElement('div');
+            botonContainer.className = 'mt-3';
+            
             const generarBtn = document.createElement('button');
             generarBtn.type = 'button';
-            generarBtn.className = 'btn btn-sm btn-outline-secondary mt-2';
-            generarBtn.innerHTML = '<i class="fas fa-key me-1"></i>Generar contraseña segura';
+            generarBtn.className = 'btn btn-outline-secondary w-100';
+            generarBtn.style.border = '2px solid #e9ecef';
+            generarBtn.style.padding = '10px 15px';
+            generarBtn.style.fontWeight = '500';
+            generarBtn.innerHTML = '<i class="fas fa-key me-2"></i>Generar contraseña segura';
+            
             generarBtn.addEventListener('click', async function () {
                 try {
+                    // Cambiar estado del botón
+                    const originalHTML = this.innerHTML;
+                    this.disabled = true;
+                    this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Generando...';
+                    
                     const respuesta = await fetch('/api/registro/generate-password');
                     const resultado = await respuesta.json();
 
                     if (resultado.success) {
                         claveRegistro.value = resultado.password;
                         confirmarClave.value = resultado.password;
+                        
+                        // Disparar eventos para activar validaciones
                         claveRegistro.dispatchEvent(new Event('input'));
-                        alert('Contraseña generada. Cópiala y guárdala en un lugar seguro.');
+                        confirmarClave.dispatchEvent(new Event('input'));
+                        
+                        alert('✅ Contraseña segura generada. Cópiala y guárdala en un lugar seguro.\n\nEsta contraseña NO está en la lista de contraseñas comunes.');
                     }
+                    
+                    // Restaurar botón
+                    this.disabled = false;
+                    this.innerHTML = originalHTML;
                 } catch (error) {
                     console.error('Error al generar contraseña:', error);
+                    alert('❌ Error al generar la contraseña');
+                    this.disabled = false;
+                    this.innerHTML = '<i class="fas fa-key me-2"></i>Generar contraseña segura';
                 }
             });
-
-            claveRegistro.parentNode.appendChild(generarBtn);
+            
+            botonContainer.appendChild(generarBtn);
+            
+            // ===== INSERTAR EL BOTÓN DESPUÉS DEL INDICADOR DE FORTALEZA =====
+            if (indicadorFortaleza.parentNode) {
+                indicadorFortaleza.insertAdjacentElement('afterend', botonContainer);
+            } else {
+                // Fallback: insertar después del input-group
+                if (inputGroup && inputGroup.parentNode) {
+                    inputGroup.insertAdjacentElement('afterend', botonContainer);
+                } else {
+                    contenedorPassword.appendChild(botonContainer);
+                }
+            }
         }
     }
 
@@ -204,42 +349,113 @@ document.addEventListener('DOMContentLoaded', function () {
             <div class="strength-bar ${clase}">
                 <div class="strength-fill" style="width: ${Math.min(100, fuerza * 16.66)}%"></div>
             </div>
-            <small class="d-block mt-1">Fortaleza: <strong>${nivel}</strong></small>
-            ${mensajes.length > 0 ? `<small class="d-block text-muted">Sugerencias: ${mensajes.join(', ')}</small>` : ''}
+            <div class="d-flex justify-content-between align-items-center mt-1">
+                <small>Fortaleza: <strong class="${clase}">${nivel}</strong></small>
+                <small class="text-muted">${password.length}/128</small>
+            </div>
+            <small id="commonPasswordWarning" class="d-block mt-1 text-warning" style="display: none;"></small>
+            ${mensajes.length > 0 ? `<small class="d-block text-muted mt-1"><i class="fas fa-info-circle me-1"></i>Sugerencias: ${mensajes.join(', ')}</small>` : ''}
         `;
         elemento.className = `password-strength mt-2 ${clase}`;
+
+        if (password.length >= 6) {
+            checkCommonPassword(password, elemento);
+        }
     }
 
+    // ========== VALIDACIÓN DEL FORMULARIO DE REGISTRO ==========
+    function validarFormularioRegistro() {
+        if (!validarNombreApellido()) {
+            alert('Por favor, corrige los campos de nombre y apellido');
+            return false;
+        }
+
+        const clave = document.getElementById('claveRegistro').value;
+        const confirmarClave = document.getElementById('confirmarClave').value;
+
+        if (clave !== confirmarClave) {
+            alert('Las contraseñas no coinciden');
+            return false;
+        }
+
+        if (clave.length < 12) {
+            alert('La contraseña debe tener al menos 12 caracteres');
+            return false;
+        }
+
+        const tieneMinuscula = /[a-z]/.test(clave);
+        const tieneMayuscula = /[A-Z]/.test(clave);
+        const tieneNumero = /\d/.test(clave);
+        const tieneEspecial = /[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(clave);
+
+        if (!tieneMinuscula || !tieneMayuscula || !tieneNumero || !tieneEspecial) {
+            alert('La contraseña debe incluir mayúsculas, minúsculas, números y caracteres especiales');
+            return false;
+        }
+
+        return true;
+    }
+
+    // ========== EVENT LISTENER DEL FORMULARIO DE REGISTRO ==========
     const formRegistro = document.getElementById('formRegistro');
     if (formRegistro) {
         formRegistro.addEventListener('submit', async function (e) {
             e.preventDefault();
 
-            console.log('Enviando formulario de registro...');
-
             if (!validarFormularioRegistro()) return;
 
-            const datos = {
-                nombre: document.getElementById('nombre').value.trim(),
-                apellido: document.getElementById('apellido').value.trim(),
-                correo: document.getElementById('correoRegistro').value.trim(),
-                clave: document.getElementById('claveRegistro').value,
-                fechaRegistro: new Date().toISOString()
-            };
-
-            console.log('Datos a enviar:', datos);
+            const password = document.getElementById('claveRegistro').value;
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
 
             try {
+                // Deshabilitar botón y mostrar carga
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Verificando seguridad...';
+
+                // VERIFICAR CONTRASEÑA COMÚN ANTES DE ENVIAR
+                const verificacion = await validarContraseñaComun(password);
+
+                if (verificacion.esComun) {
+                    alert(`⚠️ CONTRASEÑA NO SEGURA\n\n${verificacion.mensaje}\n\nPor favor, elige una contraseña más fuerte y única.\n\nRecomendaciones:\n• ${verificacion.recomendaciones.join('\n• ')}`);
+
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+
+                    const claveRegistro = document.getElementById('claveRegistro');
+                    claveRegistro.classList.add('is-invalid');
+                    claveRegistro.classList.add('is-invalid-common');
+
+                    let errorDiv = claveRegistro.parentNode.querySelector('.common-password-error');
+                    if (!errorDiv) {
+                        errorDiv = document.createElement('div');
+                        errorDiv.className = 'invalid-feedback common-password-error';
+                        claveRegistro.parentNode.appendChild(errorDiv);
+                    }
+                    errorDiv.textContent = '❌ Esta contraseña está en la lista de contraseñas comunes';
+                    errorDiv.style.display = 'block';
+
+                    return;
+                }
+
+                // Si la contraseña es segura, continuar con el registro
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Registrando...';
+
+                const datos = {
+                    nombre: document.getElementById('nombre').value.trim(),
+                    apellido: document.getElementById('apellido').value.trim(),
+                    correo: document.getElementById('correoRegistro').value.trim(),
+                    clave: password,
+                    fechaRegistro: new Date().toISOString()
+                };
+
                 const respuesta = await fetch('/api/registro', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(datos)
                 });
 
-                console.log('Respuesta del servidor:', respuesta);
-
                 const resultado = await respuesta.json();
-                console.log('Resultado:', resultado);
 
                 if (resultado.success) {
                     await loginUsuario({
@@ -248,20 +464,51 @@ document.addEventListener('DOMContentLoaded', function () {
                         correo: datos.correo
                     });
 
-                    alert('¡Registro exitoso! Bienvenido ' + datos.nombre);
+                    alert('✅ ¡Registro exitoso! Bienvenido ' + datos.nombre);
                     const modal = bootstrap.Modal.getInstance(document.getElementById('modalRegistrarse'));
                     modal.hide();
                     formRegistro.reset();
+
+                    document.querySelectorAll('.is-valid, .is-invalid').forEach(el => {
+                        el.classList.remove('is-valid', 'is-invalid', 'is-invalid-common', 'is-invalid-other');
+                    });
+
+                    const errors = document.querySelectorAll('.invalid-feedback');
+                    errors.forEach(error => error.style.display = 'none');
+
                 } else {
-                    alert('Error: ' + (resultado.error || 'No se pudo registrar'));
+                    // Si el servidor rechazó por contraseña común
+                    if (resultado.error && resultado.error.includes('común')) {
+                        alert('❌ ' + resultado.error);
+
+                        const claveRegistro = document.getElementById('claveRegistro');
+                        claveRegistro.classList.add('is-invalid');
+                        claveRegistro.classList.add('is-invalid-common');
+
+                        let errorDiv = claveRegistro.parentNode.querySelector('.common-password-error');
+                        if (!errorDiv) {
+                            errorDiv = document.createElement('div');
+                            errorDiv.className = 'invalid-feedback common-password-error';
+                            claveRegistro.parentNode.appendChild(errorDiv);
+                        }
+                        errorDiv.textContent = '❌ ' + resultado.error;
+                        errorDiv.style.display = 'block';
+                    } else {
+                        alert('Error: ' + (resultado.error || 'No se pudo registrar'));
+                    }
                 }
+
             } catch (error) {
                 console.error('Error completo:', error);
                 alert('Error al conectar con el servidor: ' + error.message);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
             }
         });
     }
 
+    // ========== AUTENTICACIÓN ==========
     const formularioInicio = document.getElementById('formularioInicio');
     if (formularioInicio) {
         formularioInicio.addEventListener('submit', async function (e) {
@@ -282,12 +529,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (resultado.success) {
                     loginUsuario(resultado.usuario);
 
-                    alert('¡Inicio de sesión exitoso!');
+                    alert('✅ ¡Inicio de sesión exitoso!');
                     const modal = bootstrap.Modal.getInstance(document.getElementById('modalIniciarSesion'));
                     modal.hide();
                     formularioInicio.reset();
                 } else {
-                    alert(`Error: ${resultado.error}${resultado.intentosRestantes ? `\nIntentos restantes: ${resultado.intentosRestantes}` : ''}`);
+                    alert(`❌ Error: ${resultado.error}${resultado.intentosRestantes ? `\nIntentos restantes: ${resultado.intentosRestantes}` : ''}`);
                 }
             } catch (error) {
                 console.error('Error:', error);
@@ -438,40 +685,16 @@ document.addEventListener('DOMContentLoaded', function () {
         window.irAPerfil = function () {
             mostrarPerfil();
         };
-    }
 
-    function validarFormularioRegistro() {
-        if (!validarNombreApellido()) {
-            alert('Por favor, corrige los campos de nombre y apellido');
-            return false;
-        }
+        window.mostrarContraseñasComunes = function () {
+            mostrarContraseñasComunes();
+        };
 
-        const clave = document.getElementById('claveRegistro').value;
-        const confirmarClave = document.getElementById('confirmarClave').value;
-
-        if (clave !== confirmarClave) {
-            alert('Las contraseñas no coinciden');
-            return false;
-        }
-
-        if (clave.length < 12) {
-            alert('La contraseña debe tener al menos 12 caracteres');
-            return false;
-        }
-
-        const tieneMinuscula = /[a-z]/.test(clave);
-        const tieneMayuscula = /[A-Z]/.test(clave);
-        const tieneNumero = /\d/.test(clave);
-        const tieneEspecial = /[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(clave);
-
-        if (!tieneMinuscula || !tieneMayuscula || !tieneNumero || !tieneEspecial) {
-            alert('La contraseña debe incluir mayúsculas, minúsculas, números y caracteres especiales');
-            return false;
-        }
-
-        return true;
+        setTimeout(agregarBotonContraseñasComunes, 1000);
     }
 });
+
+// ========== FUNCIONES GLOBALES ==========
 
 function validarNombreApellido() {
     const nombre = document.getElementById('nombre');
@@ -533,222 +756,70 @@ function validarCampoTexto(campo, idError) {
     }
 }
 
-async function enviarRegistro(datos) {
-    try {
-        const token = await grecaptcha.execute('TU_SITE_KEY', { action: 'submit' });
-        datos.recaptchaToken = token;
-        const respuesta = await fetch('/api/registro', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(datos)
-        });
-        
-    } catch (error) {
-        console.error('Error CAPTCHA:', error);
-    }
-}
-
-// ... (código existente hasta la función actualizarIndicadorFortaleza)
-
-    function actualizarIndicadorFortaleza(elemento, password) {
-        if (!password) {
-            elemento.innerHTML = '';
-            elemento.className = 'password-strength mt-2';
-            return;
-        }
-
-        const longitud = password.length;
-        const tieneMinuscula = /[a-z]/.test(password);
-        const tieneMayuscula = /[A-Z]/.test(password);
-        const tieneNumero = /\d/.test(password);
-        const tieneEspecial = /[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(password);
-
-        let fuerza = 0;
-        let mensajes = [];
-
-        if (longitud >= 12) fuerza += 2;
-        else if (longitud >= 8) fuerza += 1;
-
-        if (tieneMinuscula) fuerza += 1;
-        if (tieneMayuscula) fuerza += 1;
-        if (tieneNumero) fuerza += 1;
-        if (tieneEspecial) fuerza += 1;
-
-        let nivel = '';
-        let clase = '';
-
-        if (fuerza >= 6) {
-            nivel = 'Muy fuerte';
-            clase = 'strength-very-strong';
-        } else if (fuerza >= 4) {
-            nivel = 'Fuerte';
-            clase = 'strength-strong';
-        } else if (fuerza >= 2) {
-            nivel = 'Moderada';
-            clase = 'strength-moderate';
-        } else {
-            nivel = 'Débil';
-            clase = 'strength-weak';
-        }
-
-        if (longitud < 12) mensajes.push(`${12 - longitud} caracteres más para el mínimo`);
-        if (!tieneMinuscula) mensajes.push('Agrega minúsculas');
-        if (!tieneMayuscula) mensajes.push('Agrega mayúsculas');
-        if (!tieneNumero) mensajes.push('Agrega números');
-        if (!tieneEspecial) mensajes.push('Agrega caracteres especiales');
-
-        // ========== NUEVO: Chequear contra contraseñas comunes ==========
-        elemento.innerHTML = `
-            <div class="strength-bar ${clase}">
-                <div class="strength-fill" style="width: ${Math.min(100, fuerza * 16.66)}%"></div>
-            </div>
-            <small class="d-block mt-1">Fortaleza: <strong>${nivel}</strong></small>
-            <small class="d-block mt-1 text-warning" id="commonPasswordWarning" style="display: none;">
-                ⚠️ Esta contraseña podría ser común
-            </small>
-            ${mensajes.length > 0 ? `<small class="d-block text-muted">Sugerencias: ${mensajes.join(', ')}</small>` : ''}
-        `;
-        elemento.className = `password-strength mt-2 ${clase}`;
-
-        // Verificar si es contraseña común
-        if (password.length >= 6) {
-            checkCommonPassword(password, elemento);
-        }
-    }
-
-    // ========== NUEVA FUNCIÓN: Verificar contraseña común ==========
-    async function checkCommonPassword(password, elemento) {
-        try {
-            const respuesta = await fetch('/api/registro/check-common-password', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ password: password })
-            });
-
-            const resultado = await respuesta.json();
-            
-            if (resultado.success && resultado.isCommon) {
-                const warningElement = elemento.querySelector('#commonPasswordWarning');
-                if (warningElement) {
-                    warningElement.style.display = 'block';
-                    warningElement.innerHTML = `⚠️ <strong>Advertencia de seguridad:</strong> Esta contraseña está en la lista de contraseñas comunes.`;
-                    warningElement.classList.add('text-danger');
-                    warningElement.classList.remove('text-warning');
-                }
-                
-                // Agregar mensaje adicional
-                const existingMessages = elemento.querySelectorAll('.text-muted');
-                if (existingMessages.length > 0) {
-                    const lastMessage = existingMessages[existingMessages.length - 1];
-                    lastMessage.innerHTML += '<br>🚫 <strong>Se recomienda:</strong> Elegir una contraseña más única y compleja';
-                    lastMessage.classList.add('text-danger');
-                }
-            }
-        } catch (error) {
-            console.error('Error verificando contraseña común:', error);
-        }
-    }
-
-// ... (resto del código existente)
-
-    // ========== NUEVA FUNCIÓN PARA EL BOTÓN DE CONTRASEÑAS COMUNES ==========
-    async function mostrarContraseñasComunes() {
-        try {
-            const respuesta = await fetch('/api/registro/common-passwords');
-            const resultado = await respuesta.json();
-            
-            if (resultado.success) {
-                const passwordsList = resultado.passwords.join(', ');
-                alert(`📋 Lista de contraseñas comunes detectadas:\n\n${passwordsList}\n\nTotal: ${resultado.count} contraseñas\n\n⚠️ Evita usar estas contraseñas por seguridad.`);
-            }
-        } catch (error) {
-            console.error('Error obteniendo contraseñas comunes:', error);
-            alert('No se pudo cargar la lista de contraseñas comunes');
-        }
-    }
-
-    // Agregar botón para ver contraseñas comunes
-    function agregarBotonContraseñasComunes() {
-        const formulario = document.getElementById('formRegistro');
-        if (formulario) {
-            const botonDiv = document.createElement('div');
-            botonDiv.className = 'text-center mt-3';
-            botonDiv.innerHTML = `
-                <button type="button" class="btn btn-outline-info btn-sm" onclick="mostrarContraseñasComunes()">
-                    <i class="fas fa-exclamation-triangle me-1"></i>Ver contraseñas comunes a evitar
-                </button>
-                <p class="small text-muted mt-1">Conoce qué contraseñas son vulnerables</p>
-            `;
-            formulario.appendChild(botonDiv);
-        }
-    }
-
-// ... (al final del DOMContentLoaded, después de configurar eventos)
-
-    function configurarEventos() {
-        // ... (eventos existentes)
-
-        window.mostrarContraseñasComunes = function () {
-            mostrarContraseñasComunes();
-        };
-
-        // Agregar botón después de que se cargue el DOM
-        setTimeout(agregarBotonContraseñasComunes, 1000);
-    }
-
-// ... (resto del código)
-
-// ========== NUEVA FUNCIÓN GLOBAL ==========
+// ========== FUNCIÓN PARA MOSTRAR CONTRASEÑAS COMUNES ==========
 window.mostrarContraseñasComunes = async function () {
     try {
         const respuesta = await fetch('/api/registro/common-passwords');
         const resultado = await respuesta.json();
-        
+
         if (resultado.success) {
-            // Crear modal para mostrar las contraseñas
-            const modalHTML = `
-                <div class="modal fade" id="modalContraseñasComunes" tabindex="-1">
-                    <div class="modal-dialog modal-lg">
-                        <div class="modal-content">
-                            <div class="modal-header bg-warning">
-                                <h5 class="modal-title">⚠️ Contraseñas Comunes a Evitar</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                            </div>
-                            <div class="modal-body">
-                                <p class="text-danger"><strong>Advertencia:</strong> Estas contraseñas son vulnerables y frecuentemente usadas en ataques.</p>
-                                <div class="alert alert-info">
-                                    <i class="fas fa-lightbulb me-2"></i>
-                                    <strong>Consejo:</strong> No uses estas contraseñas ni variaciones de ellas.
+            if (!document.getElementById('modalContraseñasComunes')) {
+                const modalHTML = `
+                    <div class="modal fade" id="modalContraseñasComunes" tabindex="-1">
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-header bg-warning">
+                                    <h5 class="modal-title">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>
+                                        ⚠️ Contraseñas Comunes a Evitar
+                                    </h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                 </div>
-                                <div class="common-passwords-list">
-                                    ${resultado.passwords.map(pass => 
-                                        `<span class="badge bg-danger me-1 mb-1">${pass}</span>`
-                                    ).join('')}
+                                <div class="modal-body">
+                                    <div class="alert alert-danger">
+                                        <i class="fas fa-shield-alt me-2"></i>
+                                        <strong>¡NO USES ESTAS CONTRASEÑAS!</strong>
+                                        <p class="mb-0 mt-1 small">Estas contraseñas son las más vulnerables y frecuentemente usadas en ataques cibernéticos.</p>
+                                    </div>
+                                    <div class="alert alert-info">
+                                        <i class="fas fa-lightbulb me-2"></i>
+                                        <strong>Consejo de seguridad:</strong> 
+                                        Nunca uses estas contraseñas ni variaciones de ellas. Elige una combinación única de al menos 12 caracteres con mayúsculas, minúsculas, números y símbolos.
+                                    </div>
+                                    <div class="common-passwords-list">
+                                        ${resultado.passwords.map(pass => 
+                                            `<span class="badge bg-danger me-1 mb-1 p-2">${pass}</span>`
+                                        ).join('')}
+                                    </div>
+                                    <div class="mt-3 d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <strong>Total en lista:</strong> 
+                                            <span class="badge bg-primary">${resultado.count} contraseñas</span>
+                                        </div>
+                                        <div>
+                                            <strong>Fuente:</strong> 
+                                            <span class="badge bg-secondary">password.txt</span>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="mt-3">
-                                    <p><strong>Total en lista:</strong> ${resultado.count} contraseñas</p>
-                                    <p><strong>Fuente:</strong> Archivo password.txt del sistema</p>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                        <i class="fas fa-times me-1"></i>Cerrar
+                                    </button>
+                                    <button type="button" class="btn btn-primary" onclick="copiarListaContraseñas()">
+                                        <i class="fas fa-copy me-1"></i>Copiar Lista
+                                    </button>
                                 </div>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                                <button type="button" class="btn btn-primary" onclick="copiarListaContraseñas()">
-                                    <i class="fas fa-copy me-1"></i>Copiar Lista
-                                </button>
                             </div>
                         </div>
                     </div>
-                </div>
-            `;
-            
-            // Agregar modal al DOM si no existe
-            if (!document.getElementById('modalContraseñasComunes')) {
+                `;
+
                 const modalContainer = document.createElement('div');
                 modalContainer.innerHTML = modalHTML;
                 document.body.appendChild(modalContainer);
             }
-            
-            // Mostrar modal
+
             const modal = new bootstrap.Modal(document.getElementById('modalContraseñasComunes'));
             modal.show();
         }
@@ -758,22 +829,113 @@ window.mostrarContraseñasComunes = async function () {
     }
 };
 
+// ========== FUNCIÓN PARA COPIAR LISTA DE CONTRASEÑAS ==========
 window.copiarListaContraseñas = async function () {
     try {
         const respuesta = await fetch('/api/registro/common-passwords');
         const resultado = await respuesta.json();
-        
+
         if (resultado.success) {
-            const texto = `LISTA DE CONTRASEÑAS COMUNES A EVITAR:\n\n${resultado.passwords.join('\n')}\n\nTotal: ${resultado.count} contraseñas\n\n⚠️ No uses estas contraseñas por seguridad.`;
-            
+            const texto = `LISTA DE CONTRASEÑAS COMUNES A EVITAR\n${'='.repeat(50)}\n\n` +
+                          `${resultado.passwords.join('\n')}\n\n${'='.repeat(50)}\n` +
+                          `Total: ${resultado.count} contraseñas\n\n` +
+                          `⚠️ ADVERTENCIA: No uses NINGUNA de estas contraseñas ni variaciones de ellas.\n` +
+                          `Tu seguridad es lo más importante.`;
+
             await navigator.clipboard.writeText(texto);
-            alert('Lista copiada al portapapeles');
+            alert('✅ Lista copiada al portapapeles');
         }
     } catch (error) {
+        console.error('Error al copiar:', error);
         alert('Error al copiar la lista');
     }
 };
 
+// ========== FUNCIÓN PARA AGREGAR BOTÓN DE CONTRASEÑAS COMUNES ==========
+function agregarBotonContraseñasComunes() {
+    const formulario = document.getElementById('formRegistro');
+    if (formulario) {
+        if (!document.querySelector('.btn-contraseñas-comunes')) {
+            const botonDiv = document.createElement('div');
+            botonDiv.className = 'text-center mt-3 btn-contraseñas-comunes';
+            botonDiv.innerHTML = `
+                <button type="button" class="btn btn-outline-warning btn-sm" onclick="mostrarContraseñasComunes()">
+                    <i class="fas fa-exclamation-triangle me-1"></i>
+                    Ver contraseñas comunes a evitar
+                </button>
+                <p class="small text-muted mt-2 mb-0">
+                    <i class="fas fa-info-circle me-1"></i>
+                    El sistema rechazará automáticamente cualquier contraseña de esta lista
+                </p>
+            `;
+            formulario.appendChild(botonDiv);
+        }
+    }
+}
+
+// ========== FUNCIÓN PARA TOGGLE DE CONTRASEÑA ==========
+function setupPasswordToggle() {
+    const toggleClave = document.getElementById('toggleClaveRegistro');
+    const claveInput = document.getElementById('claveRegistro');
+    
+    if (toggleClave && claveInput) {
+        toggleClave.addEventListener('click', function() {
+            const type = claveInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            claveInput.setAttribute('type', type);
+            
+            const icon = this.querySelector('i');
+            if (type === 'text') {
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        });
+    }
+    
+    const toggleConfirmar = document.getElementById('toggleConfirmarClave');
+    const confirmarInput = document.getElementById('confirmarClave');
+    
+    if (toggleConfirmar && confirmarInput) {
+        toggleConfirmar.addEventListener('click', function() {
+            const type = confirmarInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            confirmarInput.setAttribute('type', type);
+            
+            const icon = this.querySelector('i');
+            if (type === 'text') {
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        });
+    }
+}
+
+function setupLoginPasswordToggle() {
+    const toggleLogin = document.getElementById('toggleClaveUsuario');
+    const loginInput = document.getElementById('claveUsuario');
+    
+    if (toggleLogin && loginInput) {
+        toggleLogin.addEventListener('click', function() {
+            const type = loginInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            loginInput.setAttribute('type', type);
+            
+            const icon = this.querySelector('i');
+            if (type === 'text') {
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        });
+    }
+}
+
+// ========== FUNCIÓN PARA GENERAR CONTRASEÑA SEGURA ==========
 window.generarContraseñaSegura = async function () {
     try {
         const respuesta = await fetch('/api/registro/generate-password');
@@ -788,6 +950,7 @@ window.generarContraseñaSegura = async function () {
     return null;
 };
 
+// ========== FUNCIÓN PARA VALIDAR FORTALEZA DE CONTRASEÑA ==========
 window.validarFortalezaContraseña = async function (password) {
     try {
         const respuesta = await fetch('/api/registro/validate-password', {

@@ -19,27 +19,28 @@ class registroModelo {
         allowSpaces: false
     };
 
-    // ========== NUEVA FUNCIÓN: Cargar contraseñas comunes desde archivo ==========
-    static async loadCommonPasswords() {
+    // ========== CAMBIAR DE STATIC A MÉTODO DE INSTANCIA ==========
+    async loadCommonPasswords() {
         try {
             const __filename = fileURLToPath(import.meta.url);
             const __dirname = path.dirname(__filename);
-            const projectRoot = path.join(__dirname, '../..');
+            // ===== CORREGIDO: La ruta correcta =====
+            const projectRoot = path.join(__dirname, '..');
             const filePath = path.join(projectRoot, 'password.txt');
-            
+
             console.log(`📁 Buscando archivo en: ${filePath}`);
-            
+
             if (!fs.existsSync(filePath)) {
-                console.warn('⚠️ Archivo password.txt no encontrado');
+                console.warn('⚠️ Archivo password.txt no encontrado en:', filePath);
                 return [];
             }
-            
+
             const data = fs.readFileSync(filePath, 'utf8');
             const passwords = data
                 .split('\n')
                 .map(p => p.trim())
                 .filter(p => p.length > 0);
-            
+
             console.log(`📊 Cargadas ${passwords.length} contraseñas comunes desde password.txt`);
             return passwords;
         } catch (error) {
@@ -48,43 +49,40 @@ class registroModelo {
         }
     }
 
-    // ========== NUEVA FUNCIÓN: Validar contra contraseñas comunes ==========
-    static async validateAgainstCommonPasswords(password) {
+    // ========== CAMBIAR DE STATIC A MÉTODO DE INSTANCIA ==========
+    async validateAgainstCommonPasswords(password) {
         const commonPasswords = await this.loadCommonPasswords();
-        
-        // Verificar si la contraseña está en la lista
-        const isCommon = commonPasswords.some(commonPass => 
-            password.toLowerCase().includes(commonPass.toLowerCase()) ||
-            commonPass.toLowerCase().includes(password.toLowerCase())
+
+        // Verificar si la contraseña está EXACTAMENTE en la lista
+        const isCommon = commonPasswords.some(commonPass =>
+            commonPass === password
         );
-        
+
         // Verificar variaciones comunes
         const variations = [
-            password,
+            password.toLowerCase(),
+            password.toUpperCase(),
             password + '123',
             password + '!',
             '123' + password,
-            password + '2024',
-            password + '2023',
-            password.toLowerCase(),
-            password.toUpperCase()
+            password + '2026',
+            password + '2025',
+            password + '2024'
         ];
-        
+
         const hasCommonVariation = variations.some(variation =>
-            commonPasswords.some(commonPass =>
-                commonPass.toLowerCase() === variation.toLowerCase()
-            )
+            commonPasswords.includes(variation)
         );
-        
+
         return {
             isCommon: isCommon || hasCommonVariation,
             commonPasswords: commonPasswords
         };
     }
 
-    // ========== FUNCIÓN ACTUALIZADA: Validar fortaleza con chequeo de archivo ==========
-    static async validatePasswordStrength(password) {
-        const policy = this.PASSWORD_POLICY;
+    // ========== CAMBIAR DE STATIC A MÉTODO DE INSTANCIA ==========
+    async validatePasswordStrength(password) {
+        const policy = registroModelo.PASSWORD_POLICY;
         const errors = [];
 
         if (password.length < policy.minLength) {
@@ -118,10 +116,10 @@ class registroModelo {
             errors.push('La contraseña no puede contener solo números');
         }
 
-        // ========== NUEVA VALIDACIÓN: Chequear contra archivo ==========
+        // ========== VALIDACIÓN CONTRA ARCHIVO ==========
         const commonPasswordCheck = await this.validateAgainstCommonPasswords(password);
         if (commonPasswordCheck.isCommon) {
-            errors.push('Esta contraseña es demasiado común. Por seguridad, elige una más única.');
+            errors.push('❌ Esta contraseña es demasiado común. Por seguridad, elige una más única.');
         }
 
         return {
@@ -131,9 +129,9 @@ class registroModelo {
         };
     }
 
-    static async hashPassword(password) {
+    async hashPassword(password) {
         try {
-            const salt = await bcrypt.genSalt(this.SALT_ROUNDS);
+            const salt = await bcrypt.genSalt(registroModelo.SALT_ROUNDS);
             const hashedPassword = await bcrypt.hash(password, salt);
             return hashedPassword;
         } catch (error) {
@@ -142,7 +140,7 @@ class registroModelo {
         }
     }
 
-    static async verifyPassword(password, hashedPassword) {
+    async verifyPassword(password, hashedPassword) {
         try {
             return await bcrypt.compare(password, hashedPassword);
         } catch (error) {
@@ -151,7 +149,7 @@ class registroModelo {
         }
     }
 
-    static generateSecurePassword() {
+    generateSecurePassword() {
         const chars = {
             lower: 'abcdefghijklmnopqrstuvwxyz',
             upper: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
@@ -167,7 +165,7 @@ class registroModelo {
         ];
 
         const allChars = chars.lower + chars.upper + chars.numbers + chars.special;
-        for (let i = password.length; i < 12; i++) {
+        for (let i = password.length; i < 16; i++) {
             password.push(allChars[Math.floor(Math.random() * allChars.length)]);
         }
 
@@ -194,7 +192,8 @@ class registroModelo {
                 throw new Error(`Apellido inválido: ${apellidoValidation.error}`);
             }
 
-            const passwordValidation = await registroModelo.validatePasswordStrength(registroData.clave);
+            // ========== USAR this EN VEZ DE registroModelo ==========
+            const passwordValidation = await this.validatePasswordStrength(registroData.clave);
             if (!passwordValidation.isValid) {
                 throw new Error(`Contraseña inválida: ${passwordValidation.errors.join(', ')}`);
             }
@@ -204,7 +203,7 @@ class registroModelo {
                 throw new Error('El correo electrónico ya está registrado');
             }
 
-            const hashedPassword = await registroModelo.hashPassword(registroData.clave);
+            const hashedPassword = await this.hashPassword(registroData.clave);
             const registro = {
                 nombre: registroData.nombre,
                 apellido: registroData.apellido,
@@ -261,16 +260,16 @@ class registroModelo {
             const colRegistro = dbcliente.db.collection('registro');
 
             if (registroData.clave) {
-                const passwordValidation = await registroModelo.validatePasswordStrength(registroData.clave);
+                const passwordValidation = await this.validatePasswordStrength(registroData.clave);
                 if (!passwordValidation.isValid) {
                     throw new Error(`Contraseña inválida: ${passwordValidation.errors.join(', ')}`);
                 }
 
-                const hashedPassword = await registroModelo.hashPassword(registroData.clave);
+                const hashedPassword = await this.hashPassword(registroData.clave);
                 const usuarioActual = await colRegistro.findOne({ _id: new ObjectId(id) });
 
                 for (const oldHash of usuarioActual.historicoClaves || []) {
-                    if (await registroModelo.verifyPassword(registroData.clave, oldHash)) {
+                    if (await this.verifyPassword(registroData.clave, oldHash)) {
                         throw new Error('No puedes reutilizar una contraseña anterior');
                     }
                 }
@@ -316,7 +315,7 @@ class registroModelo {
                 };
             }
 
-            const passwordMatch = await registroModelo.verifyPassword(password, usuario.claveHash);
+            const passwordMatch = await this.verifyPassword(password, usuario.claveHash);
 
             if (!passwordMatch) {
                 const intentosActualizados = (usuario.intentosFallidos || 0) + 1;
@@ -358,6 +357,7 @@ class registroModelo {
                 }
             };
         } catch (error) {
+            console.error('Error en authenticate:', error);
             throw new Error('Error en la autenticación');
         }
     }

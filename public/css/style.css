@@ -710,3 +710,48 @@ body {
     color: #721c24;
     border: 1px solid #f5c6cb;
 }
+
+/* ========== ESTILOS PARA BOTÓN GENERAR CONTRASEÑA ========== */
+.btn-outline-secondary.w-100 {
+    border: 2px solid #e9ecef !important;
+    background-color: white !important;
+    color: #6c757d !important;
+    padding: 10px 15px !important;
+    font-weight: 500 !important;
+    transition: all 0.3s ease !important;
+    border-radius: 8px !important;
+}
+
+.btn-outline-secondary.w-100:hover {
+    background-color: #f8f9fa !important;
+    border-color: #667eea !important;
+    color: #667eea !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2) !important;
+}
+
+.btn-outline-secondary.w-100:active {
+    transform: translateY(0) !important;
+}
+
+.btn-outline-secondary.w-100 i {
+    font-size: 0.9rem;
+}
+
+/* Espaciado correcto */
+.mt-3 {
+    margin-top: 1rem !important;
+}
+
+/* Asegurar que el botón esté debajo del indicador de fortaleza */
+.password-strength + .mt-3 {
+    margin-top: 1rem !important;
+}
+
+/* Responsive */
+@media (max-width: 576px) {
+    .btn-outline-secondary.w-100 {
+        width: 100% !important;
+        padding: 12px 15px !important;
+    }
+}
