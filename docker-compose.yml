@@ -1,0 +1,14 @@
+services:
+  nginx-modsec:
+    image: owasp/modsecurity-crs:nginx
+    ports:
+      - "8080:8080"
+    environment:
+      - PARANOIA=1
+      - BACKEND=http://host.docker.internal:5566
+      - PORT=8080
+    volumes:
+      - ./nginx/custom_rules:/etc/modsecurity.d/custom_rules
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    network_mode: bridge
