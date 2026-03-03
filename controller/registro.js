@@ -1,7 +1,52 @@
 import registroModel from '../model/registro.js';
+import jwt from 'jsonwebtoken';
 
 class registroController {
-    // ========== MUEVE ESTA FUNCIÓN FUERA DEL CONTROLLER ==========
+    // ========== NUEVO: Generar token JWT ==========
+    generateToken(user) {
+        return jwt.sign(
+            { 
+                id: user.id || user._id,
+                correo: user.correo,
+                nombre: user.nombre,
+                apellido: user.apellido
+            },
+            process.env.JWT_SECRET,
+            { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
+        );
+    }
+
+    // ========== NUEVO: Middleware de verificación de token ==========
+    verifyToken(req, res, next) {
+        const authHeader = req.headers.authorization;
+        
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({
+                success: false,
+                error: 'Token no proporcionado'
+            });
+        }
+
+        const token = authHeader.split(' ')[1];
+
+        try {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            req.user = decoded;
+            next();
+        } catch (error) {
+            if (error.name === 'TokenExpiredError') {
+                return res.status(401).json({
+                    success: false,
+                    error: 'Token expirado'
+                });
+            }
+            return res.status(403).json({
+                success: false,
+                error: 'Token inválido'
+            });
+        }
+    }
+
     calculatePasswordStrength(password) {
         let score = 0;
 
@@ -30,7 +75,7 @@ class registroController {
                 });
             }
 
-            // ===== CAPTCHA - SOLO EN PRODUCCIÓN Y SI HAY TOKEN =====
+            // CAPTCHA - SOLO EN PRODUCCIÓN Y SI HAY TOKEN
             if (process.env.NODE_ENV === 'production' && recaptchaToken) {
                 try {
                     const verificationUrl = 'https://www.google.com/recaptcha/api/siteverify';
@@ -50,7 +95,6 @@ class registroController {
                     }
                 } catch (captchaError) {
                     console.error('Error en CAPTCHA:', captchaError);
-                    // NO bloqueamos el registro por error de CAPTCHA en desarrollo
                 }
             }
 
@@ -100,6 +144,7 @@ class registroController {
         }
     }
 
+    // ========== MODIFICADO: authenticate con JWT ==========
     async authenticate(req, res) {
         try {
             const { correo, clave } = req.body;
@@ -114,9 +159,14 @@ class registroController {
             const result = await registroModel.authenticate(correo, clave);
 
             if (result.success) {
+                // Generar token JWT
+                const token = this.generateToken(result.usuario);
+                
                 res.status(200).json({
                     success: true,
-                    usuario: result.usuario
+                    usuario: result.usuario,
+                    token: token,
+                    expiresIn: process.env.JWT_EXPIRES_IN
                 });
             } else {
                 const response = {
@@ -139,6 +189,7 @@ class registroController {
         }
     }
 
+    // ========== MODIFICADO: getAll con protección ==========
     async getAll(req, res) {
         try {
             const data = await registroModel.getAll();
@@ -155,9 +206,19 @@ class registroController {
         }
     }
 
+    // ========== MODIFICADO: getOne con protección ==========
     async getOne(req, res) {
         try {
             const { id } = req.params;
+            
+            // Verificar que el usuario solo pueda acceder a sus propios datos
+            if (req.user.id !== id && req.user.id !== id.toString()) {
+                return res.status(403).json({
+                    success: false,
+                    error: 'No tienes permiso para acceder a este recurso'
+                });
+            }
+
             const data = await registroModel.getOne(id);
 
             if (!data) {
@@ -183,6 +244,15 @@ class registroController {
     async update(req, res) {
         try {
             const { id } = req.params;
+            
+            // Verificar que el usuario solo pueda actualizar sus propios datos
+            if (req.user.id !== id && req.user.id !== id.toString()) {
+                return res.status(403).json({
+                    success: false,
+                    error: 'No tienes permiso para modificar este recurso'
+                });
+            }
+
             const data = await registroModel.update(id, req.body);
             
             res.status(200).json({
@@ -211,6 +281,15 @@ class registroController {
     async delete(req, res) {
         try {
             const { id } = req.params;
+            
+            // Verificar que el usuario solo pueda eliminar sus propios datos
+            if (req.user.id !== id && req.user.id !== id.toString()) {
+                return res.status(403).json({
+                    success: false,
+                    error: 'No tienes permiso para eliminar este recurso'
+                });
+            }
+
             const data = await registroModel.delete(id);
             
             res.status(200).json({
@@ -262,7 +341,6 @@ class registroController {
                 isValid: validation.isValid,
                 errors: validation.errors,
                 isCommonPassword: validation.isCommonPassword || false,
-                // ===== CORREGIDO: usar this.calculatePasswordStrength =====
                 strength: this.calculatePasswordStrength(password)
             });
         } catch (e) {

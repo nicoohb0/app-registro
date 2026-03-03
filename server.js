@@ -7,6 +7,10 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import dbcliente from './config/dbcliente.js';
 
+// ===== NUEVO: Importar Swagger =====
+import swaggerUi from 'swagger-ui-express';
+import swaggerSpec from './swagger.js';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -29,6 +33,19 @@ app.use('/bootstrap', express.static(path.join(__dirname, 'node_modules/bootstra
 app.use('/css', express.static(path.join(__dirname, 'public/css')));
 app.use('/js', express.static(path.join(__dirname, 'public/js')));
 
+// ===== NUEVO: Documentación API con Swagger =====
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  explorer: true,
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'API Sistema de Registro - Documentación',
+}));
+
+// Endpoint para obtener el JSON de OpenAPI
+app.get('/api-docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
+});
+
 // Rutas
 app.get('/', (req, res) => {
     res.render('home', { title: 'Sistema de Registro' });
@@ -42,6 +59,8 @@ dbcliente.conectarDB().then(() => {
     const PORT = process.env.PORT || 5566;
     app.listen(PORT, () => {
         console.log(`🚀 Servidor en http://localhost:${PORT}`);
+        console.log(`📚 Documentación API: http://localhost:${PORT}/api-docs`);
+        console.log(`📄 OpenAPI JSON: http://localhost:${PORT}/api-docs.json`);
     });
 }).catch((error) => {
     console.error('❌ No se pudo conectar a la base de datos:', error);
@@ -99,7 +118,6 @@ app.use((req, res, next) => {
     next();
 });
 
-
 // API
 app.use('/api/registro', routeRegistro);
 
@@ -108,10 +126,3 @@ app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).json({ error: 'Error interno del servidor' });
 });
-
-// // Iniciar
-// const PORT = process.env.PORT || 5566;
-// app.listen(PORT, () => {
-//     console.log(`🚀 Servidor en http://localhost:${PORT}`);
-//     // console.log(`📝 API Registro: http://localhost:${PORT}/api/registro`);
-// });
