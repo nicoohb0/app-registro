@@ -33,7 +33,7 @@ npm install swagger-ui-express swagger-jsdoc
 ```
 
 ```bash
-npm install swagger-ui-express swagger-jsdoc
+npm install jsonwebtoken
 ```
 
 
