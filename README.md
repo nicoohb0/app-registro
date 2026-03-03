@@ -47,7 +47,7 @@ extensión visualCode
 # REPORTE DE AUDITORÍA DE SEGURIDAD API REST
 
 **Fecha:** 2026-03-03
-**Auditor:** [Tu Nombre]
+**Auditor:** Nicolás
 **Versión API:** 1.0.0
 **Aplicación:** Sistema de Registro de Usuarios
 
