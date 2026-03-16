@@ -2,7 +2,7 @@ import registroModel from '../model/registro.js';
 import jwt from 'jsonwebtoken';
 
 class registroController {
-    // ========== NUEVO: Generar token JWT ==========
+
     generateToken(user) {
         return jwt.sign(
             { 
@@ -16,7 +16,6 @@ class registroController {
         );
     }
 
-    // ========== NUEVO: Middleware de verificación de token ==========
     verifyToken(req, res, next) {
         const authHeader = req.headers.authorization;
         

@@ -35,7 +35,7 @@ import registroController from '../controller/registro.js';
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-route.post('/', registroController.create);
+route.post('/', (req, res) => registroController.create(req, res));
 
 /**
  * @swagger
@@ -63,7 +63,7 @@ route.post('/', registroController.create);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-route.post('/authenticate', registroController.authenticate);
+route.post('/authenticate', (req, res) => registroController.authenticate(req, res));
 
 /**
  * @swagger
@@ -88,7 +88,7 @@ route.post('/authenticate', registroController.authenticate);
  *             schema:
  *               $ref: '#/components/schemas/PasswordValidation'
  */
-route.post('/validate-password', registroController.validatePassword);
+route.post('/validate-password', (req, res) => registroController.validatePassword(req, res));
 
 /**
  * @swagger
@@ -109,7 +109,7 @@ route.post('/validate-password', registroController.validatePassword);
  *                 password:
  *                   type: string
  */
-route.get('/generate-password', registroController.generateSecurePassword);
+route.get('/generate-password', (req, res) => registroController.generateSecurePassword(req, res));
 
 /**
  * @swagger
@@ -134,7 +134,7 @@ route.get('/generate-password', registroController.generateSecurePassword);
  *                   items:
  *                     type: string
  */
-route.get('/common-passwords', registroController.getCommonPasswords);
+route.get('/common-passwords', (req, res) => registroController.getCommonPasswords(req, res));
 
 /**
  * @swagger
@@ -166,7 +166,7 @@ route.get('/common-passwords', registroController.getCommonPasswords);
  *                 message:
  *                   type: string
  */
-route.post('/check-common-password', registroController.checkCommonPassword);
+route.post('/check-common-password', (req, res) => registroController.checkCommonPassword(req, res));
 
 /**
  * @swagger
@@ -193,7 +193,7 @@ route.post('/check-common-password', registroController.checkCommonPassword);
  *       401:
  *         description: No autorizado
  */
-route.get('/', registroController.verifyToken, registroController.getAll);
+route.get('/', registroController.verifyToken, (req, res) => registroController.getAll(req, res));
 
 /**
  * @swagger
@@ -225,7 +225,7 @@ route.get('/', registroController.verifyToken, registroController.getAll);
  *       404:
  *         description: Usuario no encontrado
  */
-route.get('/:id', registroController.verifyToken, registroController.getOne);
+route.get('/:id', registroController.verifyToken, (req, res) => registroController.getOne(req, res));
 
 /**
  * @swagger
@@ -261,7 +261,7 @@ route.get('/:id', registroController.verifyToken, registroController.getOne);
  *                 modifiedCount:
  *                   type: integer
  */
-route.put('/:id', registroController.verifyToken, registroController.update);
+route.put('/:id', registroController.verifyToken, (req, res) => registroController.update(req, res));
 
 /**
  * @swagger
@@ -292,6 +292,6 @@ route.put('/:id', registroController.verifyToken, registroController.update);
  *                 deletedCount:
  *                   type: integer
  */
-route.delete('/:id', registroController.verifyToken, registroController.delete);
+route.delete('/:id', registroController.verifyToken, (req, res) => registroController.delete(req, res));
 
 export default route;
