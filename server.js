@@ -7,7 +7,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import dbcliente from './config/dbcliente.js';
 
-// ===== NUEVO: Importar Swagger =====
+// ===== Importar Swagger =====
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './swagger.js';
 
@@ -33,17 +33,33 @@ app.use('/bootstrap', express.static(path.join(__dirname, 'node_modules/bootstra
 app.use('/css', express.static(path.join(__dirname, 'public/css')));
 app.use('/js', express.static(path.join(__dirname, 'public/js')));
 
-// ===== NUEVO: Documentación API con Swagger =====
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+// ===== MODIFICADO: Documentación API con Swagger y soporte para autenticación =====
+const swaggerOptions = {
   explorer: true,
   customCss: '.swagger-ui .topbar { display: none }',
   customSiteTitle: 'API Sistema de Registro - Documentación',
-}));
+  swaggerOptions: {
+    persistAuthorization: true, // Mantiene la autorización entre peticiones
+    displayRequestDuration: true,
+    filter: true,
+    tryItOutEnabled: true
+  }
+};
+
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, swaggerOptions));
 
 // Endpoint para obtener el JSON de OpenAPI
 app.get('/api-docs.json', (req, res) => {
   res.setHeader('Content-Type', 'application/json');
   res.send(swaggerSpec);
+});
+
+// ===== NUEVO: Middleware de debug para autorización =====
+app.use('/api', (req, res, next) => {
+    console.log('🔐 Headers de autorización:', req.headers.authorization);
+    console.log('📝 Método:', req.method);
+    console.log('📍 URL:', req.url);
+    next();
 });
 
 // Rutas
@@ -61,6 +77,7 @@ dbcliente.conectarDB().then(() => {
         console.log(`🚀 Servidor en http://localhost:${PORT}`);
         console.log(`📚 Documentación API: http://localhost:${PORT}/api-docs`);
         console.log(`📄 OpenAPI JSON: http://localhost:${PORT}/api-docs.json`);
+        console.log(`🔐 Para endpoints protegidos, usa el botón "Authorize" en Swagger UI`);
     });
 }).catch((error) => {
     console.error('❌ No se pudo conectar a la base de datos:', error);

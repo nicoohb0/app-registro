@@ -16,32 +16,57 @@ class registroController {
         );
     }
 
+    // ===== MODIFICADO: verifyToken con mejor manejo de errores y debug =====
     verifyToken(req, res, next) {
         const authHeader = req.headers.authorization;
         
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        console.log('🔍 verifyToken - Header recibido:', authHeader);
+        
+        if (!authHeader) {
+            console.log('❌ No hay header de autorización');
             return res.status(401).json({
                 success: false,
                 error: 'Token no proporcionado'
             });
         }
 
-        const token = authHeader.split(' ')[1];
+        // Extraer el token (acepta tanto "Bearer token" como solo "token")
+        let token = authHeader;
+        if (authHeader.startsWith('Bearer ')) {
+            token = authHeader.substring(7);
+            console.log('✅ Token extraído con Bearer');
+        } else {
+            console.log('⚠️ Token sin prefijo Bearer');
+        }
+
+        console.log('🔑 Token a verificar (primeros 20 chars):', token.substring(0, 20) + '...');
 
         try {
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            console.log('✅ Token verificado correctamente. Usuario:', decoded.correo);
+            console.log('📦 Payload decodificado:', decoded);
             req.user = decoded;
             next();
         } catch (error) {
+            console.error('❌ Error verificando token:', error.message);
+            
             if (error.name === 'TokenExpiredError') {
                 return res.status(401).json({
                     success: false,
                     error: 'Token expirado'
                 });
             }
+            
+            if (error.name === 'JsonWebTokenError') {
+                return res.status(403).json({
+                    success: false,
+                    error: 'Token inválido: ' + error.message
+                });
+            }
+            
             return res.status(403).json({
                 success: false,
-                error: 'Token inválido'
+                error: 'Error de autenticación: ' + error.message
             });
         }
     }
@@ -143,7 +168,6 @@ class registroController {
         }
     }
 
-    // ========== MODIFICADO: authenticate con JWT ==========
     async authenticate(req, res) {
         try {
             const { correo, clave } = req.body;
@@ -165,7 +189,7 @@ class registroController {
                     success: true,
                     usuario: result.usuario,
                     token: token,
-                    expiresIn: process.env.JWT_EXPIRES_IN
+                    expiresIn: process.env.JWT_EXPIRES_IN || '24h'
                 });
             } else {
                 const response = {
@@ -188,7 +212,6 @@ class registroController {
         }
     }
 
-    // ========== MODIFICADO: getAll con protección ==========
     async getAll(req, res) {
         try {
             const data = await registroModel.getAll();
@@ -205,19 +228,26 @@ class registroController {
         }
     }
 
-    // ========== MODIFICADO: getOne con protección ==========
     async getOne(req, res) {
         try {
             const { id } = req.params;
             
+            console.log('🔍 getOne - ID solicitado:', id);
+            console.log('🔍 getOne - Usuario autenticado:', req.user);
+            
             // Verificar que el usuario solo pueda acceder a sus propios datos
-            if (req.user.id !== id && req.user.id !== id.toString()) {
+            const userId = req.user.id || req.user._id;
+            console.log('🔍 Comparando IDs:', userId, 'vs', id);
+            
+            if (userId.toString() !== id.toString()) {
+                console.log('❌ Acceso denegado - IDs no coinciden');
                 return res.status(403).json({
                     success: false,
                     error: 'No tienes permiso para acceder a este recurso'
                 });
             }
 
+            console.log('✅ Acceso permitido - Obteniendo datos...');
             const data = await registroModel.getOne(id);
 
             if (!data) {
@@ -245,7 +275,8 @@ class registroController {
             const { id } = req.params;
             
             // Verificar que el usuario solo pueda actualizar sus propios datos
-            if (req.user.id !== id && req.user.id !== id.toString()) {
+            const userId = req.user.id || req.user._id;
+            if (userId.toString() !== id.toString()) {
                 return res.status(403).json({
                     success: false,
                     error: 'No tienes permiso para modificar este recurso'
@@ -282,7 +313,8 @@ class registroController {
             const { id } = req.params;
             
             // Verificar que el usuario solo pueda eliminar sus propios datos
-            if (req.user.id !== id && req.user.id !== id.toString()) {
+            const userId = req.user.id || req.user._id;
+            if (userId.toString() !== id.toString()) {
                 return res.status(403).json({
                     success: false,
                     error: 'No tienes permiso para eliminar este recurso'

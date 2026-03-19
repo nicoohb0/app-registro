@@ -27,6 +27,7 @@ const options = {
           type: 'http',
           scheme: 'bearer',
           bearerFormat: 'JWT',
+          description: 'Ingresa tu token JWT en el formato: Bearer {token}'
         },
       },
       schemas: {
@@ -87,6 +88,11 @@ const options = {
         },
       },
     },
+    security: [
+      {
+        bearerAuth: []
+      }
+    ],
     tags: [
       { name: 'Autenticación', description: 'Endpoints de autenticación' },
       { name: 'Usuarios', description: 'Gestión de usuarios' },
